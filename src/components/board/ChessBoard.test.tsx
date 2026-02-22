@@ -97,7 +97,7 @@ describe("ChessBoard", () => {
     render(<ChessBoard fen={STARTING_FEN} selectedSquare="e2" />);
 
     const e2 = screen.getByLabelText("e2 white p");
-    expect(e2.className).toContain("bg-yellow-400");
+    expect(e2.className).toContain("bg-[#f6f669]");
   });
 
   it("shows valid move dots for move targets", () => {
@@ -126,9 +126,9 @@ describe("ChessBoard", () => {
 
     const e2 = screen.getByLabelText("e2");
     const e4 = screen.getByLabelText("e4 white p");
-    // Both should have last-move highlighting (yellow)
-    expect(e2.className).toContain("bg-yellow");
-    expect(e4.className).toContain("bg-yellow");
+    // Both should have last-move highlighting
+    expect(e2.className).toContain("bg-[#cdd16a]");
+    expect(e4.className).toContain("bg-[#cdd16a]");
   });
 
   it("renders coordinate labels on correct edges", () => {

@@ -15,11 +15,10 @@ import { cn } from "@/lib/utils";
 import { SquareHighlight } from "./SquareHighlight";
 import { ArrowOverlay } from "./ArrowOverlay";
 
-/** Unicode chess piece characters */
-const PIECE_UNICODE: Record<PieceColor, Record<PieceType, string>> = {
-  w: { k: "\u2654", q: "\u2655", r: "\u2656", b: "\u2657", n: "\u2658", p: "\u2659" },
-  b: { k: "\u265A", q: "\u265B", r: "\u265C", b: "\u265D", n: "\u265E", p: "\u265F" },
-};
+/** SVG piece image paths */
+function getPieceImageSrc(color: PieceColor, type: PieceType): string {
+  return `/pieces/${color}${type.toUpperCase()}.svg`;
+}
 
 interface ChessBoardProps {
   /** Current board position as FEN */
@@ -153,14 +152,14 @@ export function ChessBoard({
                 className={cn(
                   "relative flex aspect-square items-center justify-center",
                   "cursor-pointer",
-                  // Board colors
-                  isLight ? "bg-amber-100" : "bg-amber-800",
+                  // Board colors (Lichess-style)
+                  isLight ? "bg-[#f0d9b5]" : "bg-[#b58863]",
                   // Selected square
-                  isSelected && "!bg-yellow-400/70",
+                  isSelected && (isLight ? "!bg-[#f6f669]" : "!bg-[#baca2b]"),
                   // Last move highlight
                   isLastMoveSquare &&
                     !isSelected &&
-                    (isLight ? "bg-yellow-200" : "bg-yellow-600/60")
+                    (isLight ? "bg-[#cdd16a]" : "bg-[#aaa23a]")
                 )}
                 onClick={() => handleSquareClick(square)}
               >
@@ -181,9 +180,12 @@ export function ChessBoard({
 
                 {/* Piece */}
                 {piece && (
-                  <span className="pointer-events-none relative z-10 select-none text-[clamp(1.5rem,10cqw,4rem)] leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)]">
-                    {PIECE_UNICODE[piece.color][piece.type]}
-                  </span>
+                  <img
+                    src={getPieceImageSrc(piece.color, piece.type)}
+                    alt={`${piece.color === "w" ? "white" : "black"} ${piece.type}`}
+                    className="pointer-events-none relative z-10 h-[85%] w-[85%] select-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]"
+                    draggable={false}
+                  />
                 )}
 
                 {/* Coordinate labels */}
@@ -191,7 +193,7 @@ export function ChessBoard({
                   <span
                     className={cn(
                       "absolute bottom-0.5 right-1 text-[0.55rem] font-semibold leading-none",
-                      isLight ? "text-amber-800/60" : "text-amber-100/60"
+                      isLight ? "text-[#b58863]" : "text-[#f0d9b5]"
                     )}
                   >
                     {file}
@@ -201,7 +203,7 @@ export function ChessBoard({
                   <span
                     className={cn(
                       "absolute left-1 top-0.5 text-[0.55rem] font-semibold leading-none",
-                      isLight ? "text-amber-800/60" : "text-amber-100/60"
+                      isLight ? "text-[#b58863]" : "text-[#f0d9b5]"
                     )}
                   >
                     {rank}
