@@ -122,5 +122,18 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Prevent accidental text selection on board interaction */
+    -webkit-tap-highlight-color: transparent;
   }
+}
+
+/* Prevent double-tap zoom on the chess board (mobile) */
+[role="grid"] {
+  touch-action: manipulation;
+}
+
+/* Prevent long-press context menu on board squares */
+[role="gridcell"] {
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }

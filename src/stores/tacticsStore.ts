@@ -1,58 +1,60 @@
 import { create } from "zustand";
 import { Chess } from "chess.js";
 import {
-  createGame,
   getValidMoves,
   getPiece,
 } from "@/lib/chess/engine";
 import { useGameStore } from "./gameStore";
 import { useProgressStore } from "./progressStore";
-import type { Opening, OpeningVariation, OpeningMove } from "@/types/opening";
+import type { TacticsPuzzle, PuzzleMove } from "@/types/tactics";
 import type { Square, PieceColor } from "@/types/chess";
 import { playWrongMoveSound, playSuccessSound } from "@/lib/sounds";
 
-export type TrainerStatus =
+export type TacticsStatus =
   | "idle"
-  | "playing"
+  | "solving"
   | "opponent-moving"
   | "wrong-move"
-  | "completed";
+  | "solved"
+  | "showing-hint";
 
-interface OpeningTrainerState {
-  opening: Opening | null;
-  activeVariation: OpeningVariation | null;
+interface TacticsState {
+  puzzle: TacticsPuzzle | null;
   currentMoveIndex: number;
   playerColor: PieceColor;
-  status: TrainerStatus;
+  status: TacticsStatus;
   wrongAttempts: number;
-  currentAnnotation: string | null;
-  expectedMove: OpeningMove | null;
-  completedVariations: Record<string, boolean>;
+  hintsUsed: number;
+  currentHintIndex: number;
+  hintText: string | null;
+  expectedMove: PuzzleMove | null;
   selectedSquare: Square | null;
   validMoveTargets: Square[];
+  startTime: number;
+  solvedPuzzles: Record<string, boolean>;
 }
 
-interface OpeningTrainerActions {
-  initOpening: (opening: Opening) => void;
-  startVariation: (variationId: string) => void;
+interface TacticsActions {
+  loadPuzzle: (puzzle: TacticsPuzzle) => void;
   handleSquareClick: (square: Square) => void;
   attemptMove: (san: string, from: Square, to: Square) => void;
   playOpponentMove: () => void;
-  retryVariation: () => void;
   showHint: () => void;
+  retryPuzzle: () => void;
   cleanup: () => void;
 }
 
-export type OpeningTrainerStore = OpeningTrainerState & OpeningTrainerActions;
+export type TacticsStore = TacticsState & TacticsActions;
 
-function getStorageKey(openingId: string): string {
-  return `chess-coach:opening-progress:${openingId}`;
-}
+const OPPONENT_MOVE_DELAY = 500;
+const WRONG_MOVE_RESET_DELAY = 800;
+const AUTO_HINT_THRESHOLD = 3;
+const STORAGE_KEY = "chess-coach:tactics-progress";
 
-function loadCompletedVariations(openingId: string): Record<string, boolean> {
+function loadSolvedPuzzles(): Record<string, boolean> {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(getStorageKey(openingId));
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
     return JSON.parse(raw) as Record<string, boolean>;
   } catch {
@@ -60,76 +62,57 @@ function loadCompletedVariations(openingId: string): Record<string, boolean> {
   }
 }
 
-function saveCompletedVariations(
-  openingId: string,
-  completed: Record<string, boolean>
-): void {
+function saveSolvedPuzzles(solved: Record<string, boolean>): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(getStorageKey(openingId), JSON.stringify(completed));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(solved));
   } catch {
-    // localStorage full or unavailable — silently ignore
+    // silently ignore
   }
 }
 
-const OPPONENT_MOVE_DELAY = 500;
-const WRONG_MOVE_RESET_DELAY = 800;
-const AUTO_HINT_THRESHOLD = 3;
-
-const initialState: OpeningTrainerState = {
-  opening: null,
-  activeVariation: null,
+const initialState: TacticsState = {
+  puzzle: null,
   currentMoveIndex: 0,
   playerColor: "w",
   status: "idle",
   wrongAttempts: 0,
-  currentAnnotation: null,
+  hintsUsed: 0,
+  currentHintIndex: 0,
+  hintText: null,
   expectedMove: null,
-  completedVariations: {},
   selectedSquare: null,
   validMoveTargets: [],
+  startTime: 0,
+  solvedPuzzles: {},
 };
 
-export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => ({
+export const useTacticsStore = create<TacticsStore>((set, get) => ({
   ...initialState,
 
-  initOpening: (opening: Opening) => {
-    const completed = loadCompletedVariations(opening.id);
-    set({
-      ...initialState,
-      opening,
-      playerColor: opening.playerColor,
-      completedVariations: completed,
-    });
-  },
+  loadPuzzle: (puzzle: TacticsPuzzle) => {
+    const solved = loadSolvedPuzzles();
 
-  startVariation: (variationId: string) => {
-    const { opening, playerColor } = get();
-    if (!opening) return;
-
-    const variation = opening.variations.find((v) => v.id === variationId);
-    if (!variation) return;
-
-    // Reset the board to the opening's starting position
-    useGameStore.getState().reset(opening.startingFen);
+    // Reset the board to the puzzle position
+    useGameStore.getState().reset(puzzle.fen);
     useGameStore.getState().setArrows([]);
     useGameStore.getState().setHighlights([]);
 
-    const firstMove = variation.moves[0] ?? null;
+    const firstMove = puzzle.solution[0] ?? null;
 
     set({
-      activeVariation: variation,
+      ...initialState,
+      puzzle,
+      playerColor: puzzle.playerColor,
       currentMoveIndex: 0,
-      wrongAttempts: 0,
-      currentAnnotation: firstMove?.annotation ?? null,
       expectedMove: firstMove,
-      selectedSquare: null,
-      validMoveTargets: [],
-      status: "playing",
+      status: "solving",
+      startTime: Date.now(),
+      solvedPuzzles: solved,
     });
 
     // If the first move is the opponent's, auto-play it
-    if (firstMove && firstMove.color !== playerColor) {
+    if (firstMove && firstMove.color !== puzzle.playerColor) {
       set({ status: "opponent-moving" });
       setTimeout(() => {
         get().playOpponentMove();
@@ -140,11 +123,10 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
   handleSquareClick: (square: Square) => {
     const { status, playerColor, selectedSquare, validMoveTargets } = get();
 
-    if (status !== "playing") return;
+    if (status !== "solving") return;
 
     // If clicking a valid move target, attempt the move
     if (selectedSquare && validMoveTargets.includes(square)) {
-      // Resolve the SAN for this move
       const gameState = useGameStore.getState();
       const moves = getValidMoves(gameState.game, selectedSquare);
       const matchingMove = moves.find((m) => m.to === square);
@@ -181,53 +163,52 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
   },
 
   attemptMove: (san: string, from: Square, to: Square) => {
-    const { activeVariation, currentMoveIndex, playerColor, opening, completedVariations } = get();
-    if (!activeVariation || !opening) return;
+    const { puzzle, currentMoveIndex, playerColor, solvedPuzzles } = get();
+    if (!puzzle) return;
 
-    const expectedMove = activeVariation.moves[currentMoveIndex];
+    const expectedMove = puzzle.solution[currentMoveIndex];
     if (!expectedMove) return;
 
     if (san === expectedMove.san) {
-      // Correct move — execute it on the game board
+      // Correct move — execute it
       useGameStore.getState().move({ from, to });
       useGameStore.getState().setArrows([]);
       useGameStore.getState().setHighlights([]);
 
       const nextIndex = currentMoveIndex + 1;
 
-      // Check if this was the last move
-      if (nextIndex >= activeVariation.moves.length) {
-        const newCompleted = { ...completedVariations, [activeVariation.id]: true };
-        saveCompletedVariations(opening.id, newCompleted);
-        useProgressStore.getState().recordVariationCompletion(
-          opening.id,
-          activeVariation.id,
-          activeVariation.moves.length,
-          get().wrongAttempts
+      // Check if puzzle is solved
+      if (nextIndex >= puzzle.solution.length) {
+        const newSolved = { ...solvedPuzzles, [puzzle.id]: true };
+        saveSolvedPuzzles(newSolved);
+        const timeSpent = Date.now() - get().startTime;
+        useProgressStore.getState().recordTacticsCompletion(
+          puzzle.id,
+          get().wrongAttempts,
+          get().hintsUsed,
+          timeSpent
         );
         playSuccessSound();
         set({
           currentMoveIndex: nextIndex,
-          status: "completed",
-          wrongAttempts: 0,
-          currentAnnotation: null,
+          status: "solved",
           expectedMove: null,
-          completedVariations: newCompleted,
           selectedSquare: null,
           validMoveTargets: [],
+          hintText: expectedMove.annotation ?? null,
+          solvedPuzzles: newSolved,
         });
         return;
       }
 
-      const nextMove = activeVariation.moves[nextIndex];
+      const nextMove = puzzle.solution[nextIndex];
 
       set({
         currentMoveIndex: nextIndex,
-        wrongAttempts: 0,
-        currentAnnotation: nextMove?.annotation ?? null,
         expectedMove: nextMove ?? null,
         selectedSquare: null,
         validMoveTargets: [],
+        hintText: expectedMove.annotation ?? null,
       });
 
       // If the next move is the opponent's, auto-play it
@@ -238,10 +219,9 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
         }, OPPONENT_MOVE_DELAY);
       }
     } else {
-      // Wrong move — do NOT execute it
+      // Wrong move
       const newWrongAttempts = get().wrongAttempts + 1;
 
-      // Show red highlight on the target square
       useGameStore.getState().setHighlights([{ square: to, color: "red" }]);
       playWrongMoveSound();
 
@@ -257,25 +237,25 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
         get().showHint();
       }
 
-      // Reset to playing after delay
+      // Reset to solving after delay
       setTimeout(() => {
         const current = get();
         if (current.status === "wrong-move") {
           useGameStore.getState().setHighlights([]);
-          set({ status: "playing" });
+          set({ status: "solving" });
         }
       }, WRONG_MOVE_RESET_DELAY);
     }
   },
 
   playOpponentMove: () => {
-    const { activeVariation, currentMoveIndex, playerColor, opening, completedVariations } = get();
-    if (!activeVariation || !opening) return;
+    const { puzzle, currentMoveIndex, playerColor, solvedPuzzles } = get();
+    if (!puzzle) return;
 
-    const move = activeVariation.moves[currentMoveIndex];
+    const move = puzzle.solution[currentMoveIndex];
     if (!move) return;
 
-    // Resolve the SAN to a concrete from/to
+    // Resolve SAN to from/to
     const gameState = useGameStore.getState();
     const allMoves = getValidMoves(gameState.game);
     const resolvedMove = allMoves.find((m) => m.san === move.san);
@@ -286,50 +266,56 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
 
     const nextIndex = currentMoveIndex + 1;
 
-    // Check if this was the last move
-    if (nextIndex >= activeVariation.moves.length) {
-      const newCompleted = { ...completedVariations, [activeVariation.id]: true };
-      saveCompletedVariations(opening.id, newCompleted);
-      useProgressStore.getState().recordVariationCompletion(
-        opening.id,
-        activeVariation.id,
-        activeVariation.moves.length,
-        get().wrongAttempts
+    // Check if puzzle is solved (opponent made last move)
+    if (nextIndex >= puzzle.solution.length) {
+      const newSolved = { ...solvedPuzzles, [puzzle.id]: true };
+      saveSolvedPuzzles(newSolved);
+      const timeSpent = Date.now() - get().startTime;
+      useProgressStore.getState().recordTacticsCompletion(
+        puzzle.id,
+        get().wrongAttempts,
+        get().hintsUsed,
+        timeSpent
       );
       set({
         currentMoveIndex: nextIndex,
-        status: "completed",
-        currentAnnotation: null,
+        status: "solved",
         expectedMove: null,
-        completedVariations: newCompleted,
         selectedSquare: null,
         validMoveTargets: [],
+        hintText: move.annotation ?? null,
+        solvedPuzzles: newSolved,
       });
       return;
     }
 
-    const nextMove = activeVariation.moves[nextIndex];
+    const nextMove = puzzle.solution[nextIndex];
     set({
       currentMoveIndex: nextIndex,
-      status: "playing",
-      currentAnnotation: nextMove?.annotation ?? null,
+      status: "solving",
       expectedMove: nextMove ?? null,
       selectedSquare: null,
       validMoveTargets: [],
     });
   },
 
-  retryVariation: () => {
-    const { activeVariation } = get();
-    if (!activeVariation) return;
-    get().startVariation(activeVariation.id);
-  },
-
   showHint: () => {
-    const { expectedMove } = get();
+    const { puzzle, expectedMove, currentHintIndex } = get();
+    if (!puzzle) return;
+
+    // Show text hint first
+    if (currentHintIndex < puzzle.hints.length) {
+      set({
+        hintText: puzzle.hints[currentHintIndex],
+        currentHintIndex: currentHintIndex + 1,
+        hintsUsed: get().hintsUsed + 1,
+      });
+      return;
+    }
+
+    // After all text hints, show arrow on the expected move
     if (!expectedMove) return;
 
-    // Resolve the expected move SAN to get from/to
     const gameState = useGameStore.getState();
     const allMoves = getValidMoves(gameState.game);
     const resolvedMove = allMoves.find((m) => m.san === expectedMove.san);
@@ -338,7 +324,14 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
       useGameStore.getState().setArrows([
         { from: resolvedMove.from, to: resolvedMove.to, color: "green" },
       ]);
+      set({ hintsUsed: get().hintsUsed + 1 });
     }
+  },
+
+  retryPuzzle: () => {
+    const { puzzle } = get();
+    if (!puzzle) return;
+    get().loadPuzzle(puzzle);
   },
 
   cleanup: () => {

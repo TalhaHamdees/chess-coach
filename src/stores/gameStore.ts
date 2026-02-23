@@ -9,6 +9,7 @@ import {
 } from "@/lib/chess/engine";
 import type { FEN, Square, Arrow, SquareHighlight, ChessMove, GameStatus, PositionRecord, ParsedGame } from "@/types/chess";
 import { DEFAULT_POSITION } from "@/lib/chess/engine";
+import { playMoveSound, playCaptureSound, playCheckSound } from "@/lib/sounds";
 
 interface GameState {
   /** Current chess.js game instance */
@@ -156,6 +157,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       arrows: [],
       highlights: [],
     });
+
+    // Play sound effect
+    if (result.isCheckmate || result.isCheck) {
+      playCheckSound();
+    } else if (result.captured) {
+      playCaptureSound();
+    } else {
+      playMoveSound();
+    }
 
     return true;
   },

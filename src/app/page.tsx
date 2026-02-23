@@ -6,7 +6,7 @@ import { ChessBoard } from "@/components/board/ChessBoard";
 import { MoveHistory } from "@/components/board/MoveHistory";
 import { ChatPanel } from "@/components/coach/ChatPanel";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, FlipVertical2, BookOpen, Search } from "lucide-react";
+import { RotateCcw, FlipVertical2, BookOpen, Search, Swords, Crown } from "lucide-react";
 
 export default function Home() {
   const {
@@ -31,11 +31,23 @@ export default function Home() {
         <h1 className="text-lg font-bold tracking-tight text-foreground">
           Chess Coach
         </h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" asChild>
             <Link href="/train/opening">
               <BookOpen className="size-4" />
               Openings
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/train/tactics">
+              <Swords className="size-4" />
+              Tactics
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/train/endgame">
+              <Crown className="size-4" />
+              Endgames
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild>

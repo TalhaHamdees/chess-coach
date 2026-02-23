@@ -70,6 +70,18 @@ export function ChessBoard({
 }: ChessBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const [squareSize, setSquareSize] = useState(0);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const prevFlippedRef = useRef(flipped);
+
+  // Flip animation trigger
+  useEffect(() => {
+    if (prevFlippedRef.current !== flipped) {
+      prevFlippedRef.current = flipped;
+      setIsFlipping(true);
+      const timer = setTimeout(() => setIsFlipping(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [flipped]);
 
   // Measure square size for arrow overlay
   useEffect(() => {
@@ -126,7 +138,10 @@ export function ChessBoard({
       {/* Board grid */}
       <div
         ref={boardRef}
-        className="grid w-full grid-cols-8 rounded-sm border-2 border-neutral-700"
+        className={cn(
+          "grid w-full grid-cols-8 rounded-sm border-2 border-neutral-700 transition-transform duration-200",
+          isFlipping && "scale-[0.97]"
+        )}
         role="grid"
         aria-label="Chess board"
       >

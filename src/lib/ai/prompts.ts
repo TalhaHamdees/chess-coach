@@ -77,6 +77,51 @@ export function buildOpeningTrainerContext(opening: {
 }
 
 /**
+ * Build context string for the tactics trainer mode.
+ * Sent as the first automated message to give the coach puzzle-specific knowledge.
+ */
+export function buildTacticsTrainerContext(puzzle: {
+  name: string;
+  theme: string;
+  description: string;
+  playerColor: "w" | "b";
+}): string {
+  const color = puzzle.playerColor === "w" ? "White" : "Black";
+  return [
+    `The student is solving a tactics puzzle: "${puzzle.name}".`,
+    `Theme: ${puzzle.theme}. ${puzzle.description}`,
+    `They are playing as ${color}.`,
+    "",
+    "Guide them toward finding the tactical idea. Give hints if they struggle, but don't reveal the solution directly. Use arrows to highlight tactical patterns.",
+  ].join("\n");
+}
+
+/**
+ * Build context string for the endgame trainer mode.
+ * Sent as the first automated message to give the coach endgame-specific knowledge.
+ */
+export function buildEndgameTrainerContext(position: {
+  name: string;
+  category: string;
+  description: string;
+  keyTechniques: string[];
+  playerColor: "w" | "b";
+}): string {
+  const color = position.playerColor === "w" ? "White" : "Black";
+  const techniques = position.keyTechniques.map((t) => `- ${t}`).join("\n");
+  return [
+    `The student is studying an endgame: "${position.name}" (${position.category}).`,
+    `They are playing as ${color}.`,
+    position.description,
+    "",
+    "Key techniques:",
+    techniques,
+    "",
+    "Guide them through the correct technique. Explain the reasoning behind each move. Use arrows to highlight key squares and plans.",
+  ].join("\n");
+}
+
+/**
  * Build context string for the game analysis mode.
  * Sent as the first automated message when a game is loaded for review.
  */

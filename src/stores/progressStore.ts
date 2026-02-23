@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { OpeningProgress } from "@/types/progress";
+import type { OpeningProgress, TacticsProgress } from "@/types/progress";
 import {
   calculateSM2,
   mapTrainerOutcomeToQuality,
@@ -14,6 +14,10 @@ const STORAGE_KEY = "chess-coach:progress";
 interface ProgressState {
   /** SM-2 progress keyed by "openingId:variationId" */
   variations: Record<string, OpeningProgress>;
+  /** Tactics puzzle progress keyed by puzzleId */
+  tacticsProgress: Record<string, TacticsProgress>;
+  /** Endgame position progress keyed by positionId */
+  endgameProgress: Record<string, { completed: boolean; wrongAttempts: number; hintsUsed: number; lastPracticed: number }>;
   /** Consecutive days of practice */
   streakDays: number;
   /** ISO date string of last active day (YYYY-MM-DD) */
@@ -30,6 +34,27 @@ interface ProgressActions {
     totalMoves: number,
     wrongAttempts: number
   ) => void;
+  /** Record a tactics puzzle completion */
+  recordTacticsCompletion: (
+    puzzleId: string,
+    wrongAttempts: number,
+    hintsUsed: number,
+    timeSpent: number
+  ) => void;
+  /** Record an endgame position completion */
+  recordEndgameCompletion: (
+    positionId: string,
+    wrongAttempts: number,
+    hintsUsed: number
+  ) => void;
+  /** Get tactics progress for a puzzle */
+  getTacticsProgress: (puzzleId: string) => TacticsProgress | undefined;
+  /** Get count of solved tactics puzzles */
+  getSolvedTacticsCount: () => number;
+  /** Check if an endgame position has been completed */
+  isEndgameCompleted: (positionId: string) => boolean;
+  /** Get count of completed endgame positions */
+  getCompletedEndgameCount: () => number;
   /** Get all variation progress entries for an opening */
   getOpeningProgress: (openingId: string) => OpeningProgress[];
   /** Get all variations that are due for review, sorted most-overdue first */
@@ -64,6 +89,8 @@ function persist(state: ProgressState): void {
   try {
     const data = {
       variations: state.variations,
+      tacticsProgress: state.tacticsProgress,
+      endgameProgress: state.endgameProgress,
       streakDays: state.streakDays,
       lastActiveDate: state.lastActiveDate,
     };
@@ -86,6 +113,8 @@ function loadFromStorage(): Partial<ProgressState> | null {
 
 const initialState: ProgressState = {
   variations: {},
+  tacticsProgress: {},
+  endgameProgress: {},
   streakDays: 0,
   lastActiveDate: "",
   hydrated: false,
@@ -132,6 +161,51 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
 
     // Also update streak
     get().updateStreak();
+  },
+
+  recordTacticsCompletion: (puzzleId, wrongAttempts, hintsUsed, timeSpent) => {
+    const existing = get().tacticsProgress[puzzleId];
+    const progress: TacticsProgress = {
+      puzzleId,
+      solved: true,
+      attempts: (existing?.attempts ?? 0) + 1,
+      hintsUsed,
+      timeSpent,
+      lastAttempted: Date.now(),
+    };
+    const newTactics = { ...get().tacticsProgress, [puzzleId]: progress };
+    set({ tacticsProgress: newTactics });
+    persist(get());
+    get().updateStreak();
+  },
+
+  recordEndgameCompletion: (positionId, wrongAttempts, hintsUsed) => {
+    const progress = {
+      completed: true,
+      wrongAttempts,
+      hintsUsed,
+      lastPracticed: Date.now(),
+    };
+    const newEndgame = { ...get().endgameProgress, [positionId]: progress };
+    set({ endgameProgress: newEndgame });
+    persist(get());
+    get().updateStreak();
+  },
+
+  getTacticsProgress: (puzzleId) => {
+    return get().tacticsProgress[puzzleId];
+  },
+
+  getSolvedTacticsCount: () => {
+    return Object.values(get().tacticsProgress).filter((p) => p.solved).length;
+  },
+
+  isEndgameCompleted: (positionId) => {
+    return get().endgameProgress[positionId]?.completed ?? false;
+  },
+
+  getCompletedEndgameCount: () => {
+    return Object.values(get().endgameProgress).filter((p) => p.completed).length;
   },
 
   getOpeningProgress: (openingId) => {
@@ -200,6 +274,8 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
     if (stored) {
       set({
         variations: stored.variations ?? {},
+        tacticsProgress: stored.tacticsProgress ?? {},
+        endgameProgress: stored.endgameProgress ?? {},
         streakDays: stored.streakDays ?? 0,
         lastActiveDate: stored.lastActiveDate ?? "",
         hydrated: true,
