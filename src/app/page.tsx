@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useGameStore } from "@/stores/gameStore";
 import { ChessBoard } from "@/components/board/ChessBoard";
 import { MoveHistory } from "@/components/board/MoveHistory";
 import { ChatPanel } from "@/components/coach/ChatPanel";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, FlipVertical2 } from "lucide-react";
+import { RotateCcw, FlipVertical2, BookOpen } from "lucide-react";
 
 export default function Home() {
   const {
@@ -31,6 +32,12 @@ export default function Home() {
           Chess Coach
         </h1>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/train/opening">
+              <BookOpen className="size-4" />
+              Openings
+            </Link>
+          </Button>
           <Button variant="outline" size="sm" onClick={() => reset()}>
             <RotateCcw className="size-4" />
             New Game

@@ -48,3 +48,27 @@ export const MODE_PROMPTS: Record<CoachingMode, string> = {
 export function buildSystemPrompt(mode: CoachingMode): string {
   return `${BASE_SYSTEM_PROMPT}\n\n${MODE_PROMPTS[mode]}`;
 }
+
+/**
+ * Build context string for the opening trainer mode.
+ * Sent as the first automated message to give the coach opening-specific knowledge.
+ */
+export function buildOpeningTrainerContext(opening: {
+  name: string;
+  eco: string;
+  keyIdeas: string[];
+  playerColor: "w" | "b";
+}): string {
+  const color = opening.playerColor === "w" ? "White" : "Black";
+  const ideas = opening.keyIdeas.map((idea) => `- ${idea}`).join("\n");
+
+  return [
+    `The student is studying the ${opening.name} (${opening.eco}).`,
+    `They are playing as ${color}.`,
+    "",
+    "Key ideas for this opening:",
+    ideas,
+    "",
+    "Please introduce this opening and guide the student through the main ideas. Use arrows and highlights to illustrate key squares and plans.",
+  ].join("\n");
+}
