@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { OpeningCard } from "@/components/training/OpeningCard";
 import {
@@ -58,6 +59,9 @@ export default function OpeningSelectorPage() {
         <h1 className="text-lg font-bold tracking-tight text-foreground">
           Opening Trainer
         </h1>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Filter bar */}

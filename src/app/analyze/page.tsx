@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { MobileChatDrawer } from "@/components/coach/MobileChatDrawer";
 import { useGameStore } from "@/stores/gameStore";
 import { useCoachStore } from "@/stores/coachStore";
 import { useAnalysisStore } from "@/stores/analysisStore";
@@ -136,6 +138,9 @@ export default function AnalyzePage() {
             {gameInfo}
           </span>
         )}
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Main content */}
@@ -207,12 +212,17 @@ export default function AnalyzePage() {
               {/* Lichess Explorer for current position */}
               <LichessExplorer fen={fen} playerColor="w" />
 
-              {/* Chat panel */}
-              <ChatPanel />
+              {/* Chat panel (desktop only) */}
+              <div className="hidden lg:block">
+                <ChatPanel />
+              </div>
             </>
           )}
         </div>
       </div>
+
+      {/* Mobile chat drawer */}
+      <MobileChatDrawer />
     </div>
   );
 }

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, RotateCcw, Play, Undo2, FlipVertical2, Trash2 } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { MobileChatDrawer } from "@/components/coach/MobileChatDrawer";
 import { Button } from "@/components/ui/button";
 import { useGameStore } from "@/stores/gameStore";
 import { useCoachStore } from "@/stores/coachStore";
@@ -93,6 +95,7 @@ export default function CustomTrainerPage() {
               <FlipVertical2 className="size-4" />
               Flip
             </Button>
+            <ThemeToggle />
           </div>
         </header>
 
@@ -130,11 +133,14 @@ export default function CustomTrainerPage() {
             </div>
           </div>
 
-          {/* Right: Chat panel */}
-          <div className="min-h-[400px] flex-1 border-t p-4 lg:border-l lg:border-t-0">
+          {/* Right: Chat panel (desktop) */}
+          <div className="hidden min-h-[400px] flex-1 border-l p-4 lg:block">
             <ChatPanel />
           </div>
         </div>
+
+        {/* Mobile chat drawer */}
+        <MobileChatDrawer />
       </div>
     );
   }
@@ -151,6 +157,9 @@ export default function CustomTrainerPage() {
         <h1 className="text-lg font-bold tracking-tight text-foreground">
           Custom Position
         </h1>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">

@@ -8,6 +8,8 @@ import { ChessBoard } from "@/components/board/ChessBoard";
 import { MoveHistory } from "@/components/board/MoveHistory";
 import { ChatPanel } from "@/components/coach/ChatPanel";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { MobileChatDrawer } from "@/components/coach/MobileChatDrawer";
 import { RotateCcw, FlipVertical2, BookOpen, Search, Swords, Crown, MessageSquare, PenTool, GraduationCap } from "lucide-react";
 
 export default function Home() {
@@ -89,6 +91,7 @@ export default function Home() {
             <FlipVertical2 className="size-4" />
             Flip
           </Button>
+          <ThemeToggle />
         </div>
       </header>
 
@@ -128,11 +131,14 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Right: Chat panel */}
-        <div className="min-h-[400px] flex-1 border-t p-4 lg:border-l lg:border-t-0">
+        {/* Right: Chat panel (desktop) */}
+        <div className="hidden min-h-[400px] flex-1 border-l p-4 lg:block">
           <ChatPanel />
         </div>
       </div>
+
+      {/* Mobile chat drawer */}
+      <MobileChatDrawer />
     </div>
   );
 }

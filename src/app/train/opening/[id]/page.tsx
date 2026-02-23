@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { MobileChatDrawer } from "@/components/coach/MobileChatDrawer";
 import { useGameStore } from "@/stores/gameStore";
 import { useCoachStore } from "@/stores/coachStore";
 import { useOpeningTrainerStore } from "@/stores/openingTrainerStore";
@@ -132,6 +134,9 @@ export default function OpeningTrainerPage() {
         <Badge variant="outline" className="font-mono text-xs">
           {opening.eco}
         </Badge>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Main content */}
@@ -227,10 +232,15 @@ export default function OpeningTrainerPage() {
             </ul>
           </div>
 
-          {/* Chat panel */}
-          <ChatPanel />
+          {/* Chat panel (desktop only) */}
+          <div className="hidden lg:block">
+            <ChatPanel />
+          </div>
         </div>
       </div>
+
+      {/* Mobile chat drawer */}
+      <MobileChatDrawer />
     </div>
   );
 }

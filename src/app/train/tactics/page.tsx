@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { MobileChatDrawer } from "@/components/coach/MobileChatDrawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useGameStore } from "@/stores/gameStore";
@@ -121,6 +123,9 @@ export default function TacticsPage() {
           <Badge variant="outline" className="text-xs">
             {puzzle.theme}
           </Badge>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </header>
 
         {/* Main content */}
@@ -161,8 +166,8 @@ export default function TacticsPage() {
             </div>
           </div>
 
-          {/* Right: Description + Chat */}
-          <div className="min-h-[400px] flex-1 space-y-4 border-t p-4 lg:border-l lg:border-t-0">
+          {/* Right: Description + Chat (desktop) */}
+          <div className="flex-1 space-y-4 border-t p-4 lg:border-l lg:border-t-0">
             {/* Puzzle description */}
             <div className="rounded-lg border bg-card p-4">
               <h3 className="mb-2 text-sm font-semibold text-foreground">
@@ -183,10 +188,15 @@ export default function TacticsPage() {
               </div>
             </div>
 
-            {/* Chat panel */}
-            <ChatPanel />
+            {/* Chat panel (desktop only) */}
+            <div className="hidden lg:block">
+              <ChatPanel />
+            </div>
           </div>
         </div>
+
+        {/* Mobile chat drawer */}
+        <MobileChatDrawer />
       </div>
     );
   }
@@ -212,6 +222,9 @@ export default function TacticsPage() {
             {solvedCount}/{TACTICS_PUZZLES.length} solved
           </Badge>
         )}
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Filter bar */}

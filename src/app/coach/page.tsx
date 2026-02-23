@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, RotateCcw, FlipVertical2 } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { MobileChatDrawer } from "@/components/coach/MobileChatDrawer";
 import { Button } from "@/components/ui/button";
 import { useGameStore } from "@/stores/gameStore";
 import { useCoachStore } from "@/stores/coachStore";
@@ -65,6 +67,7 @@ export default function CoachPage() {
             <FlipVertical2 className="size-4" />
             Flip
           </Button>
+          <ThemeToggle />
         </div>
       </header>
 
@@ -104,11 +107,14 @@ export default function CoachPage() {
           </div>
         </div>
 
-        {/* Right: Chat panel */}
-        <div className="min-h-[400px] flex-1 border-t p-4 lg:border-l lg:border-t-0">
+        {/* Right: Chat panel (desktop) */}
+        <div className="hidden min-h-[400px] flex-1 border-l p-4 lg:block">
           <ChatPanel />
         </div>
       </div>
+
+      {/* Mobile chat drawer */}
+      <MobileChatDrawer />
     </div>
   );
 }

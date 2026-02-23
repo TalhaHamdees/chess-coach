@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, GraduationCap } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCoachStore } from "@/stores/coachStore";
@@ -96,6 +97,9 @@ export default function PlanPage() {
         <h1 className="text-lg font-bold tracking-tight text-foreground">
           Rating Improvement Plan
         </h1>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
