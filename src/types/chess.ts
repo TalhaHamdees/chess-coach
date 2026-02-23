@@ -60,3 +60,32 @@ export interface GameStatus {
   isGameOver: boolean;
   turn: PieceColor;
 }
+
+/** PGN game headers */
+export interface GameHeaders {
+  white?: string;
+  black?: string;
+  date?: string;
+  event?: string;
+  result?: string;
+  eco?: string;
+  whiteElo?: string;
+  blackElo?: string;
+  [key: string]: string | undefined;
+}
+
+/** A single position record from a parsed game */
+export interface PositionRecord {
+  fen: FEN;
+  san: string;
+  from: Square;
+  to: Square;
+}
+
+/** A fully parsed PGN game */
+export interface ParsedGame {
+  headers: GameHeaders;
+  moves: PositionRecord[];
+  startingFen: FEN;
+  result: string | null;
+}

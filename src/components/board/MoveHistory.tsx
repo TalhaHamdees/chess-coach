@@ -6,9 +6,11 @@ interface MoveHistoryProps {
   moves: string[];
   /** Optional: highlight a specific move index (0-based) */
   currentMoveIndex?: number;
+  /** Optional: callback when a move is clicked (enables clickable moves) */
+  onMoveClick?: (moveIndex: number) => void;
 }
 
-export function MoveHistory({ moves, currentMoveIndex }: MoveHistoryProps) {
+export function MoveHistory({ moves, currentMoveIndex, onMoveClick }: MoveHistoryProps) {
   if (moves.length === 0) {
     return (
       <div className="text-sm text-muted-foreground italic">No moves yet</div>
@@ -25,6 +27,8 @@ export function MoveHistory({ moves, currentMoveIndex }: MoveHistoryProps) {
     });
   }
 
+  const isClickable = !!onMoveClick;
+
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm font-mono">
       {pairs.map((pair) => {
@@ -37,8 +41,18 @@ export function MoveHistory({ moves, currentMoveIndex }: MoveHistoryProps) {
               {pair.number}.
             </span>
             <span
+              role={isClickable ? "button" : undefined}
+              tabIndex={isClickable ? 0 : undefined}
+              onClick={isClickable ? () => onMoveClick(whiteIndex) : undefined}
+              onKeyDown={isClickable ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onMoveClick(whiteIndex);
+                }
+              } : undefined}
               className={cn(
                 "w-12",
+                isClickable && "cursor-pointer rounded hover:bg-primary/10",
                 currentMoveIndex !== undefined &&
                   whiteIndex === currentMoveIndex &&
                   "rounded bg-primary/20 px-0.5 font-bold"
@@ -48,8 +62,18 @@ export function MoveHistory({ moves, currentMoveIndex }: MoveHistoryProps) {
             </span>
             {pair.black && (
               <span
+                role={isClickable ? "button" : undefined}
+                tabIndex={isClickable ? 0 : undefined}
+                onClick={isClickable ? () => onMoveClick(blackIndex) : undefined}
+                onKeyDown={isClickable ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onMoveClick(blackIndex);
+                  }
+                } : undefined}
                 className={cn(
                   "w-12",
+                  isClickable && "cursor-pointer rounded hover:bg-primary/10",
                   currentMoveIndex !== undefined &&
                     blackIndex === currentMoveIndex &&
                     "rounded bg-primary/20 px-0.5 font-bold"

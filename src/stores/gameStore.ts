@@ -7,7 +7,7 @@ import {
   getFEN,
   getGameStatus,
 } from "@/lib/chess/engine";
-import type { FEN, Square, Arrow, SquareHighlight, ChessMove, GameStatus } from "@/types/chess";
+import type { FEN, Square, Arrow, SquareHighlight, ChessMove, GameStatus, PositionRecord, ParsedGame } from "@/types/chess";
 import { DEFAULT_POSITION } from "@/lib/chess/engine";
 
 interface GameState {
@@ -31,6 +31,16 @@ interface GameState {
   status: GameStatus;
   /** Last move from/to for highlighting */
   lastMove: { from: Square; to: Square } | null;
+
+  // Navigation state (for reviewing loaded games)
+  /** Position records from a loaded game */
+  positionHistory: PositionRecord[];
+  /** Current position index: -1 = start position, 0..n = after nth half-move */
+  currentPositionIndex: number;
+  /** Whether we're navigating a loaded game (read-only board) */
+  isNavigating: boolean;
+  /** Starting FEN of loaded game */
+  loadedStartingFen: FEN | null;
 }
 
 interface GameActions {
@@ -48,6 +58,22 @@ interface GameActions {
   setHighlights: (highlights: SquareHighlight[]) => void;
   /** Clear selection */
   clearSelection: () => void;
+
+  // Navigation actions
+  /** Load a parsed game for navigation */
+  loadGame: (parsed: ParsedGame) => void;
+  /** Jump to a specific position index (-1 = start) */
+  goToPosition: (index: number) => void;
+  /** Go forward one move */
+  goForward: () => void;
+  /** Go back one move */
+  goBack: () => void;
+  /** Jump to the start */
+  goToStart: () => void;
+  /** Jump to the end */
+  goToEnd: () => void;
+  /** Exit navigation mode */
+  exitNavigation: () => void;
 }
 
 export type GameStore = GameState & GameActions;
@@ -65,6 +91,10 @@ function buildInitialState(fen?: FEN): GameState {
     flipped: false,
     status: getGameStatus(game),
     lastMove: null,
+    positionHistory: [],
+    currentPositionIndex: -1,
+    isNavigating: false,
+    loadedStartingFen: null,
   };
 }
 
@@ -72,7 +102,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   ...buildInitialState(),
 
   selectSquare: (square: Square) => {
-    const { game, selectedSquare, validMoveTargets, status } = get();
+    const { game, selectedSquare, validMoveTargets, status, isNavigating } = get();
+
+    // Don't allow selection when navigating a loaded game
+    if (isNavigating) return;
 
     // If game is over, don't allow selection
     if (status.isGameOver) return;
@@ -145,5 +178,98 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   clearSelection: () => {
     set({ selectedSquare: null, validMoveTargets: [] });
+  },
+
+  loadGame: (parsed: ParsedGame) => {
+    const game = createGame(parsed.startingFen);
+    set({
+      game,
+      fen: parsed.startingFen,
+      moveHistory: parsed.moves.map((m) => m.san),
+      selectedSquare: null,
+      validMoveTargets: [],
+      arrows: [],
+      highlights: [],
+      status: getGameStatus(game),
+      lastMove: null,
+      positionHistory: parsed.moves,
+      currentPositionIndex: -1,
+      isNavigating: true,
+      loadedStartingFen: parsed.startingFen,
+    });
+  },
+
+  goToPosition: (index: number) => {
+    const { positionHistory, isNavigating, loadedStartingFen } = get();
+    if (!isNavigating) return;
+
+    const clamped = Math.max(-1, Math.min(index, positionHistory.length - 1));
+
+    if (clamped === -1) {
+      // Go to starting position
+      const startFen = loadedStartingFen ?? DEFAULT_POSITION;
+      const game = createGame(startFen);
+      set({
+        game,
+        fen: startFen,
+        status: getGameStatus(game),
+        lastMove: null,
+        currentPositionIndex: -1,
+        arrows: [],
+        highlights: [],
+        selectedSquare: null,
+        validMoveTargets: [],
+      });
+    } else {
+      const pos = positionHistory[clamped];
+      const game = createGame(pos.fen);
+      set({
+        game,
+        fen: pos.fen,
+        status: getGameStatus(game),
+        lastMove: { from: pos.from, to: pos.to },
+        currentPositionIndex: clamped,
+        arrows: [],
+        highlights: [],
+        selectedSquare: null,
+        validMoveTargets: [],
+      });
+    }
+  },
+
+  goForward: () => {
+    const { currentPositionIndex, positionHistory, isNavigating } = get();
+    if (!isNavigating) return;
+    if (currentPositionIndex < positionHistory.length - 1) {
+      get().goToPosition(currentPositionIndex + 1);
+    }
+  },
+
+  goBack: () => {
+    const { currentPositionIndex, isNavigating } = get();
+    if (!isNavigating) return;
+    if (currentPositionIndex > -1) {
+      get().goToPosition(currentPositionIndex - 1);
+    }
+  },
+
+  goToStart: () => {
+    if (!get().isNavigating) return;
+    get().goToPosition(-1);
+  },
+
+  goToEnd: () => {
+    const { positionHistory, isNavigating } = get();
+    if (!isNavigating) return;
+    get().goToPosition(positionHistory.length - 1);
+  },
+
+  exitNavigation: () => {
+    set({
+      positionHistory: [],
+      currentPositionIndex: -1,
+      isNavigating: false,
+      loadedStartingFen: null,
+    });
   },
 }));

@@ -6,7 +6,7 @@ import { ChessBoard } from "@/components/board/ChessBoard";
 import { MoveHistory } from "@/components/board/MoveHistory";
 import { ChatPanel } from "@/components/coach/ChatPanel";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, FlipVertical2, BookOpen } from "lucide-react";
+import { RotateCcw, FlipVertical2, BookOpen, Search } from "lucide-react";
 
 export default function Home() {
   const {
@@ -36,6 +36,12 @@ export default function Home() {
             <Link href="/train/opening">
               <BookOpen className="size-4" />
               Openings
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/analyze">
+              <Search className="size-4" />
+              Analyze
             </Link>
           </Button>
           <Button variant="outline" size="sm" onClick={() => reset()}>

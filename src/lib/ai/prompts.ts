@@ -1,4 +1,5 @@
 import type { CoachingMode } from "@/types/coach";
+import type { GameHeaders } from "@/types/chess";
 
 export const BASE_SYSTEM_PROMPT = `You are a friendly, encouraging chess coach. Your job is to help the student improve at chess through clear explanations and visual guidance.
 
@@ -73,4 +74,49 @@ export function buildOpeningTrainerContext(opening: {
     "",
     "Please introduce this opening and guide the student through the main ideas. Use arrows and highlights to illustrate key squares and plans.",
   ].join("\n");
+}
+
+/**
+ * Build context string for the game analysis mode.
+ * Sent as the first automated message when a game is loaded for review.
+ */
+export function buildAnalysisContext(game: {
+  headers: GameHeaders;
+  currentMoveIndex: number;
+  totalMoves: number;
+  lastMoveSan?: string;
+}): string {
+  const lines: string[] = [];
+
+  const { headers, currentMoveIndex, totalMoves, lastMoveSan } = game;
+
+  // Game info
+  if (headers.white || headers.black) {
+    const whiteName = headers.white ?? "Unknown";
+    const blackName = headers.black ?? "Unknown";
+    const whiteElo = headers.whiteElo ? ` (${headers.whiteElo})` : "";
+    const blackElo = headers.blackElo ? ` (${headers.blackElo})` : "";
+    lines.push(`Game: ${whiteName}${whiteElo} vs ${blackName}${blackElo}`);
+  }
+
+  if (headers.event) {
+    lines.push(`Event: ${headers.event}`);
+  }
+
+  if (headers.result) {
+    lines.push(`Result: ${headers.result}`);
+  }
+
+  if (currentMoveIndex >= 0 && lastMoveSan) {
+    const moveNum = Math.floor(currentMoveIndex / 2) + 1;
+    const dots = currentMoveIndex % 2 === 0 ? "." : "...";
+    lines.push(`Currently viewing: move ${moveNum}${dots} ${lastMoveSan} (move ${currentMoveIndex + 1} of ${totalMoves})`);
+  } else {
+    lines.push(`Game has ${totalMoves} half-moves total.`);
+  }
+
+  lines.push("");
+  lines.push("I've loaded a game for analysis. Please provide an overview of this game and highlight the key moments. Use arrows and highlights to illustrate important ideas.");
+
+  return lines.join("\n");
 }

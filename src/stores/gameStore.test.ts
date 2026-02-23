@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useGameStore } from "./gameStore";
 import type { GameStore } from "./gameStore";
+import type { ParsedGame } from "@/types/chess";
 
 // Helper to get store state/actions directly
 function getStore(): GameStore {
@@ -224,6 +225,118 @@ describe("gameStore", () => {
       getStore().clearSelection();
       expect(getStore().selectedSquare).toBeNull();
       expect(getStore().validMoveTargets).toEqual([]);
+    });
+  });
+
+  describe("navigation", () => {
+    const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    const mockGame: ParsedGame = {
+      headers: { white: "Alice", black: "Bob" },
+      moves: [
+        { fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", san: "e4", from: "e2", to: "e4" },
+        { fen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2", san: "e5", from: "e7", to: "e5" },
+        { fen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2", san: "Nf3", from: "g1", to: "f3" },
+      ],
+      startingFen: STARTING_FEN,
+      result: null,
+    };
+
+    it("loadGame sets navigation state", () => {
+      getStore().loadGame(mockGame);
+      const state = getStore();
+      expect(state.isNavigating).toBe(true);
+      expect(state.positionHistory).toHaveLength(3);
+      expect(state.currentPositionIndex).toBe(-1);
+      expect(state.fen).toBe(STARTING_FEN);
+      expect(state.moveHistory).toEqual(["e4", "e5", "Nf3"]);
+    });
+
+    it("goToPosition updates FEN and lastMove", () => {
+      getStore().loadGame(mockGame);
+      getStore().goToPosition(0);
+      const state = getStore();
+      expect(state.fen).toBe(mockGame.moves[0].fen);
+      expect(state.lastMove).toEqual({ from: "e2", to: "e4" });
+      expect(state.currentPositionIndex).toBe(0);
+    });
+
+    it("goToPosition(-1) returns to starting position", () => {
+      getStore().loadGame(mockGame);
+      getStore().goToPosition(1);
+      getStore().goToPosition(-1);
+      const state = getStore();
+      expect(state.fen).toBe(STARTING_FEN);
+      expect(state.lastMove).toBeNull();
+      expect(state.currentPositionIndex).toBe(-1);
+    });
+
+    it("goToPosition clamps to valid range", () => {
+      getStore().loadGame(mockGame);
+      getStore().goToPosition(100);
+      expect(getStore().currentPositionIndex).toBe(2); // last move index
+      getStore().goToPosition(-10);
+      expect(getStore().currentPositionIndex).toBe(-1); // start
+    });
+
+    it("goForward advances one move", () => {
+      getStore().loadGame(mockGame);
+      getStore().goForward();
+      expect(getStore().currentPositionIndex).toBe(0);
+      getStore().goForward();
+      expect(getStore().currentPositionIndex).toBe(1);
+    });
+
+    it("goForward stops at the end", () => {
+      getStore().loadGame(mockGame);
+      getStore().goToEnd();
+      expect(getStore().currentPositionIndex).toBe(2);
+      getStore().goForward();
+      expect(getStore().currentPositionIndex).toBe(2);
+    });
+
+    it("goBack moves back one move", () => {
+      getStore().loadGame(mockGame);
+      getStore().goToPosition(2);
+      getStore().goBack();
+      expect(getStore().currentPositionIndex).toBe(1);
+    });
+
+    it("goBack stops at the start", () => {
+      getStore().loadGame(mockGame);
+      getStore().goBack();
+      expect(getStore().currentPositionIndex).toBe(-1);
+    });
+
+    it("goToStart jumps to the beginning", () => {
+      getStore().loadGame(mockGame);
+      getStore().goToEnd();
+      getStore().goToStart();
+      expect(getStore().currentPositionIndex).toBe(-1);
+      expect(getStore().fen).toBe(STARTING_FEN);
+    });
+
+    it("goToEnd jumps to the last move", () => {
+      getStore().loadGame(mockGame);
+      getStore().goToEnd();
+      expect(getStore().currentPositionIndex).toBe(2);
+      expect(getStore().fen).toBe(mockGame.moves[2].fen);
+    });
+
+    it("selectSquare is blocked when navigating", () => {
+      getStore().loadGame(mockGame);
+      getStore().goToEnd(); // position with Nf3 played
+      getStore().selectSquare("d7");
+      expect(getStore().selectedSquare).toBeNull();
+    });
+
+    it("exitNavigation clears navigation state", () => {
+      getStore().loadGame(mockGame);
+      getStore().goToPosition(1);
+      getStore().exitNavigation();
+      const state = getStore();
+      expect(state.isNavigating).toBe(false);
+      expect(state.positionHistory).toEqual([]);
+      expect(state.currentPositionIndex).toBe(-1);
     });
   });
 });
