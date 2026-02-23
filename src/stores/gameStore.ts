@@ -83,9 +83,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
+    // Clear coach arrows/highlights on any board interaction
+    const clearCoach = { arrows: [] as Arrow[], highlights: [] as SquareHighlight[] };
+
     // If clicking the same square, deselect
     if (selectedSquare === square) {
-      set({ selectedSquare: null, validMoveTargets: [] });
+      set({ selectedSquare: null, validMoveTargets: [], ...clearCoach });
       return;
     }
 
@@ -95,10 +98,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({
         selectedSquare: square,
         validMoveTargets: moves.map((m) => m.to),
+        ...clearCoach,
       });
     } else {
       // Clicked empty square or opponent piece with no selection — clear
-      set({ selectedSquare: null, validMoveTargets: [] });
+      set({ selectedSquare: null, validMoveTargets: [], ...clearCoach });
     }
   },
 
