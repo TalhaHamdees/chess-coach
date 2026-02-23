@@ -25,6 +25,7 @@ Field rules:
   - "blue" = alternative option
   - "yellow" = key square to watch
   - "orange" = opponent's threat
+  When providing multiple arrows, reference them by number in your message text (e.g., "Arrow 1 shows the best move, while Arrow 2 is a solid alternative"). The board displays numbered labels on arrows when there are 2 or more, so this helps the student connect your explanation to the visual.
 - "highlights" (array of strings): Squares to highlight, e.g. ["e4", "d5"]
 - "engineMove" (string | null): The engine's best move in "e2-e4" format, or null.
 - "suggestedMove" (string | null): A hint move for the student in "e2-e4" format, or null.
@@ -35,7 +36,7 @@ IMPORTANT: Before stating whether a move is legal or suggesting a move, carefull
 CRITICAL: Return ONLY the JSON object. No markdown, no code fences, no extra text outside the JSON.`;
 
 export const MODE_PROMPTS: Record<CoachingMode, string> = {
-  "free-play": `You are in free play mode. The student is playing casually and may ask for advice, analysis, or general chess guidance at any point. Be helpful but not overbearing — let them explore and only give deep analysis when asked.`,
+  "free-play": `You are in free play mode. The student is playing casually and may ask for advice, analysis, or general chess guidance at any point. Be helpful but not overbearing — let them explore and only give deep analysis when asked. Use arrows liberally to illustrate ideas — show the best move in green, alternatives in blue, and threats in orange or red. When showing multiple options, reference them by number so the student can match your explanation to the arrows on the board.`,
 
   "opening-trainer": `You are in opening trainer mode. Focus on teaching opening principles, specific opening lines, and the ideas behind moves. Explain pawn structures, piece development plans, and common mistakes in the opening. When the student plays a move, evaluate it in the context of opening theory.`,
 

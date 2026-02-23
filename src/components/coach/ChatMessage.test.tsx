@@ -102,6 +102,60 @@ describe("ChatMessage", () => {
     expect(screen.getByText("blunder")).toBeInTheDocument();
   });
 
+  it("shows arrow legend when coach message has arrows", () => {
+    render(
+      <ChatMessage
+        message={makeMessage({
+          coachResponse: {
+            message: "Here are your options",
+            fen: null,
+            arrows: [
+              { from: "e2", to: "e4", color: "green" },
+              { from: "d2", to: "d4", color: "blue" },
+            ],
+            highlights: [],
+            engineMove: null,
+            suggestedMove: null,
+            moveQuality: null,
+          },
+        })}
+      />
+    );
+    expect(screen.getByTestId("arrow-legend")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("recommended")).toBeInTheDocument();
+    expect(screen.getByText("alternative")).toBeInTheDocument();
+  });
+
+  it("does not show arrow legend when arrows are empty", () => {
+    render(
+      <ChatMessage
+        message={makeMessage({
+          coachResponse: {
+            message: "No arrows here",
+            fen: null,
+            arrows: [],
+            highlights: [],
+            engineMove: null,
+            suggestedMove: null,
+            moveQuality: null,
+          },
+        })}
+      />
+    );
+    expect(screen.queryByTestId("arrow-legend")).not.toBeInTheDocument();
+  });
+
+  it("does not show arrow legend for student messages", () => {
+    render(
+      <ChatMessage
+        message={makeMessage({ role: "student", content: "My move" })}
+      />
+    );
+    expect(screen.queryByTestId("arrow-legend")).not.toBeInTheDocument();
+  });
+
   it("preserves whitespace in message content", () => {
     render(
       <ChatMessage

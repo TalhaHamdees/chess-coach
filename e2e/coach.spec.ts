@@ -32,8 +32,8 @@ test.describe("Coach Chat", () => {
     const board = page.locator('[role="grid"]');
     await expect(board).toBeVisible();
 
-    // Chat panel card title should be visible (desktop)
-    await expect(page.locator('[data-slot="card"] >> text=Coach Chat')).toBeVisible();
+    // Chat input should be visible (desktop — embedded variant has no card wrapper)
+    await expect(page.getByPlaceholder(/ask your coach/i)).toBeVisible();
   });
 
   test("has New Game and Flip buttons", async ({ page }) => {

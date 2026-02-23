@@ -151,4 +151,48 @@ describe("ChatPanel", () => {
     const input = screen.getByPlaceholderText("Ask your coach...");
     expect(input).toBeDisabled();
   });
+
+  describe('variant="embedded"', () => {
+    it("does not render card wrapper or title", () => {
+      render(<ChatPanel variant="embedded" />);
+      // Should NOT have "Coach Chat" title
+      expect(screen.queryByText("Coach Chat")).not.toBeInTheDocument();
+      // Input should still exist
+      expect(
+        screen.getByPlaceholderText("Ask your coach...")
+      ).toBeInTheDocument();
+    });
+
+    it("shows welcome state when no messages", () => {
+      render(<ChatPanel variant="embedded" />);
+      expect(screen.getByText("Your personal chess coach")).toBeInTheDocument();
+    });
+
+    it("renders messages in embedded mode", () => {
+      useCoachStore.setState({
+        messages: [
+          {
+            id: "1",
+            role: "coach",
+            content: "Embedded coach says hi",
+            timestamp: Date.now(),
+          },
+        ],
+      });
+      render(<ChatPanel variant="embedded" />);
+      expect(screen.getByText("Embedded coach says hi")).toBeInTheDocument();
+    });
+
+    it("shows error banner in embedded mode", () => {
+      useCoachStore.setState({ error: "Embedded error" });
+      render(<ChatPanel variant="embedded" />);
+      expect(screen.getByText("Embedded error")).toBeInTheDocument();
+    });
+
+    it("applies rounded-full class to input in embedded mode", () => {
+      render(<ChatPanel variant="embedded" />);
+      const input = screen.getByPlaceholderText("Ask your coach...");
+      expect(input.className).toContain("rounded-full");
+    });
+  });
 });

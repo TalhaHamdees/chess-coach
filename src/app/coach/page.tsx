@@ -4,13 +4,13 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, RotateCcw, FlipVertical2 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { MobileChatDrawer } from "@/components/coach/MobileChatDrawer";
 import { Button } from "@/components/ui/button";
 import { useGameStore } from "@/stores/gameStore";
 import { useCoachStore } from "@/stores/coachStore";
 import { ChessBoard } from "@/components/board/ChessBoard";
 import { MoveHistory } from "@/components/board/MoveHistory";
 import { ChatPanel } from "@/components/coach/ChatPanel";
+import { MobileChatDrawer } from "@/components/coach/MobileChatDrawer";
 import { preloadAllSounds } from "@/lib/sounds";
 
 export default function CoachPage() {
@@ -74,7 +74,7 @@ export default function CoachPage() {
       {/* Main content */}
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* Left: Board + status + moves */}
-        <div className="flex shrink-0 flex-col items-center gap-3 p-4 lg:w-auto">
+        <div className="flex shrink-0 flex-col items-center justify-center gap-3 p-4 lg:w-[60%]">
           <div className="w-full max-w-[36rem]">
             <ChessBoard
               fen={fen}
@@ -107,9 +107,9 @@ export default function CoachPage() {
           </div>
         </div>
 
-        {/* Right: Chat panel (desktop) */}
-        <div className="hidden min-h-[400px] flex-1 border-l p-4 lg:block">
-          <ChatPanel />
+        {/* Right: Chat panel (desktop only) */}
+        <div className="hidden min-h-0 flex-1 border-l lg:flex">
+          <ChatPanel variant="embedded" />
         </div>
       </div>
 

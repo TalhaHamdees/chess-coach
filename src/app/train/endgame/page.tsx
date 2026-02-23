@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { MobileChatDrawer } from "@/components/coach/MobileChatDrawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useGameStore } from "@/stores/gameStore";
@@ -137,7 +136,7 @@ export default function EndgamePage() {
         </header>
 
         {/* Main content */}
-        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row">
           {/* Left: Board + feedback + move history */}
           <div className="flex shrink-0 flex-col items-center gap-3 p-4 lg:w-auto">
             <div className="w-full max-w-[36rem]">
@@ -201,15 +200,10 @@ export default function EndgamePage() {
               <p className="text-sm text-muted-foreground">{position.description}</p>
             </div>
 
-            {/* Chat panel (desktop only) */}
-            <div className="hidden lg:block">
-              <ChatPanel />
-            </div>
+            {/* Chat panel */}
+            <ChatPanel />
           </div>
         </div>
-
-        {/* Mobile chat drawer */}
-        <MobileChatDrawer />
       </div>
     );
   }

@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import type { ChatMessage as ChatMessageType } from "@/types/coach";
+import { ArrowLegend } from "./ArrowLegend";
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -40,6 +41,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
           </div>
         )}
         <div className="whitespace-pre-wrap text-sm">{message.content}</div>
+        {isCoach && message.coachResponse?.arrows && message.coachResponse.arrows.length > 0 && (
+          <ArrowLegend arrows={message.coachResponse.arrows} />
+        )}
         {quality && (
           <span
             className={cn(
