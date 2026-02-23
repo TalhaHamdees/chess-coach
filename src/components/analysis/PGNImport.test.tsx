@@ -69,12 +69,13 @@ describe("PGNImport", () => {
   it("reads PGN from file upload", async () => {
     // Replace FileReader with a mock class before rendering
     const originalFileReader = globalThis.FileReader;
-    let capturedOnload: ((event: { target: { result: string } }) => void) | null = null;
+    type OnloadHandler = (event: { target: { result: string } }) => void;
+    const captured: { onload: OnloadHandler | null } = { onload: null };
 
     class MockFileReader {
-      onload: ((event: { target: { result: string } }) => void) | null = null;
+      onload: OnloadHandler | null = null;
       readAsText() {
-        capturedOnload = this.onload;
+        captured.onload = this.onload;
       }
     }
     globalThis.FileReader = MockFileReader as unknown as typeof FileReader;
@@ -88,8 +89,8 @@ describe("PGNImport", () => {
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     // Trigger the onload callback
-    if (capturedOnload) {
-      capturedOnload({ target: { result: "1. d4 d5 2. c4" } });
+    if (captured.onload) {
+      captured.onload({ target: { result: "1. d4 d5 2. c4" } });
     }
 
     expect(importSpy).toHaveBeenCalledWith("1. d4 d5 2. c4");

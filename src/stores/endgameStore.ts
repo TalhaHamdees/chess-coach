@@ -49,6 +49,22 @@ const WRONG_MOVE_RESET_DELAY = 800;
 const AUTO_HINT_THRESHOLD = 3;
 const STORAGE_KEY = "chess-coach:endgame-progress";
 
+// Module-level timeout tracking to prevent memory leaks
+const pendingTimeouts = new Set<ReturnType<typeof setTimeout>>();
+
+function scheduleTimeout(fn: () => void, delay: number): void {
+  const id = setTimeout(() => {
+    pendingTimeouts.delete(id);
+    fn();
+  }, delay);
+  pendingTimeouts.add(id);
+}
+
+function clearPendingTimeouts(): void {
+  pendingTimeouts.forEach((id) => clearTimeout(id));
+  pendingTimeouts.clear();
+}
+
 function loadCompletedPositions(): Record<string, boolean> {
   if (typeof window === "undefined") return {};
   try {
@@ -88,6 +104,7 @@ export const useEndgameStore = create<EndgameStore>((set, get) => ({
   ...initialState,
 
   loadPosition: (position: EndgamePosition) => {
+    clearPendingTimeouts();
     const completed = loadCompletedPositions();
 
     // Reset the board to the endgame position
@@ -110,7 +127,7 @@ export const useEndgameStore = create<EndgameStore>((set, get) => ({
     // If the first move is the opponent's, auto-play it
     if (firstMove && firstMove.color !== position.playerColor) {
       set({ status: "opponent-moving" });
-      setTimeout(() => {
+      scheduleTimeout(() => {
         get().playOpponentMove();
       }, OPPONENT_MOVE_DELAY);
     }
@@ -208,7 +225,7 @@ export const useEndgameStore = create<EndgameStore>((set, get) => ({
       // If the next move is the opponent's, auto-play it
       if (nextMove && nextMove.color !== playerColor) {
         set({ status: "opponent-moving" });
-        setTimeout(() => {
+        scheduleTimeout(() => {
           get().playOpponentMove();
         }, OPPONENT_MOVE_DELAY);
       }
@@ -230,7 +247,7 @@ export const useEndgameStore = create<EndgameStore>((set, get) => ({
         get().showHint();
       }
 
-      setTimeout(() => {
+      scheduleTimeout(() => {
         const current = get();
         if (current.status === "wrong-move") {
           useGameStore.getState().setHighlights([]);
@@ -323,6 +340,7 @@ export const useEndgameStore = create<EndgameStore>((set, get) => ({
   },
 
   cleanup: () => {
+    clearPendingTimeouts();
     set({ ...initialState });
     useGameStore.getState().setArrows([]);
     useGameStore.getState().setHighlights([]);

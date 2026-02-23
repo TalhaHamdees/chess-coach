@@ -76,6 +76,22 @@ const OPPONENT_MOVE_DELAY = 500;
 const WRONG_MOVE_RESET_DELAY = 800;
 const AUTO_HINT_THRESHOLD = 3;
 
+// Module-level timeout tracking to prevent memory leaks
+const pendingTimeouts = new Set<ReturnType<typeof setTimeout>>();
+
+function scheduleTimeout(fn: () => void, delay: number): void {
+  const id = setTimeout(() => {
+    pendingTimeouts.delete(id);
+    fn();
+  }, delay);
+  pendingTimeouts.add(id);
+}
+
+function clearPendingTimeouts(): void {
+  pendingTimeouts.forEach((id) => clearTimeout(id));
+  pendingTimeouts.clear();
+}
+
 const initialState: OpeningTrainerState = {
   opening: null,
   activeVariation: null,
@@ -110,6 +126,8 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
     const variation = opening.variations.find((v) => v.id === variationId);
     if (!variation) return;
 
+    clearPendingTimeouts();
+
     // Reset the board to the opening's starting position
     useGameStore.getState().reset(opening.startingFen);
     useGameStore.getState().setArrows([]);
@@ -131,7 +149,7 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
     // If the first move is the opponent's, auto-play it
     if (firstMove && firstMove.color !== playerColor) {
       set({ status: "opponent-moving" });
-      setTimeout(() => {
+      scheduleTimeout(() => {
         get().playOpponentMove();
       }, OPPONENT_MOVE_DELAY);
     }
@@ -233,7 +251,7 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
       // If the next move is the opponent's, auto-play it
       if (nextMove && nextMove.color !== playerColor) {
         set({ status: "opponent-moving" });
-        setTimeout(() => {
+        scheduleTimeout(() => {
           get().playOpponentMove();
         }, OPPONENT_MOVE_DELAY);
       }
@@ -258,7 +276,7 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
       }
 
       // Reset to playing after delay
-      setTimeout(() => {
+      scheduleTimeout(() => {
         const current = get();
         if (current.status === "wrong-move") {
           useGameStore.getState().setHighlights([]);
@@ -342,6 +360,7 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
   },
 
   cleanup: () => {
+    clearPendingTimeouts();
     set({ ...initialState });
     useGameStore.getState().setArrows([]);
     useGameStore.getState().setHighlights([]);

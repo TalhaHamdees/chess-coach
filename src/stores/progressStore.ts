@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type { OpeningProgress, TacticsProgress } from "@/types/progress";
 import {
   calculateSM2,
@@ -70,7 +71,7 @@ interface ProgressActions {
   ) => ReviewUrgency | "new";
   /** Update consecutive day streak */
   updateStreak: () => void;
-  /** Load state from localStorage (call in useEffect for SSR safety) */
+  /** Backwards-compatible hydrate — simply sets hydrated: true (persist middleware auto-hydrates) */
   hydrate: () => void;
 }
 
@@ -84,33 +85,6 @@ function getTodayString(): string {
   return new Date().toISOString().split("T")[0];
 }
 
-function persist(state: ProgressState): void {
-  if (typeof window === "undefined") return;
-  try {
-    const data = {
-      variations: state.variations,
-      tacticsProgress: state.tacticsProgress,
-      endgameProgress: state.endgameProgress,
-      streakDays: state.streakDays,
-      lastActiveDate: state.lastActiveDate,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {
-    // localStorage full or unavailable — silently ignore
-  }
-}
-
-function loadFromStorage(): Partial<ProgressState> | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as Partial<ProgressState>;
-  } catch {
-    return null;
-  }
-}
-
 const initialState: ProgressState = {
   variations: {},
   tacticsProgress: {},
@@ -120,168 +94,199 @@ const initialState: ProgressState = {
   hydrated: false,
 };
 
-export const useProgressStore = create<ProgressStore>((set, get) => ({
-  ...initialState,
+export const useProgressStore = create<ProgressStore>()(
+  persist(
+    (set, get) => ({
+      ...initialState,
 
-  recordVariationCompletion: (
-    openingId,
-    variationId,
-    totalMoves,
-    wrongAttempts
-  ) => {
-    const key = makeKey(openingId, variationId);
-    const existing = get().variations[key];
-    const quality = mapTrainerOutcomeToQuality(wrongAttempts, true);
+      recordVariationCompletion: (
+        openingId,
+        variationId,
+        totalMoves,
+        wrongAttempts
+      ) => {
+        const key = makeKey(openingId, variationId);
+        const existing = get().variations[key];
+        const quality = mapTrainerOutcomeToQuality(wrongAttempts, true);
 
-    const sm2Input = {
-      quality,
-      easeFactor: existing?.easeFactor ?? SM2_DEFAULTS.easeFactor,
-      interval: existing?.interval ?? SM2_DEFAULTS.interval,
-      repetitions: existing?.repetitions ?? SM2_DEFAULTS.repetitions,
-    };
+        const sm2Input = {
+          quality,
+          easeFactor: existing?.easeFactor ?? SM2_DEFAULTS.easeFactor,
+          interval: existing?.interval ?? SM2_DEFAULTS.interval,
+          repetitions: existing?.repetitions ?? SM2_DEFAULTS.repetitions,
+        };
 
-    const sm2Result = calculateSM2(sm2Input);
+        const sm2Result = calculateSM2(sm2Input);
 
-    const progress: OpeningProgress = {
-      openingId,
-      variationId,
-      completedMoves: totalMoves,
-      totalMoves,
-      lastPracticed: Date.now(),
-      nextReview: sm2Result.nextReview,
-      easeFactor: sm2Result.easeFactor,
-      interval: sm2Result.interval,
-      repetitions: sm2Result.repetitions,
-    };
+        const progress: OpeningProgress = {
+          openingId,
+          variationId,
+          completedMoves: totalMoves,
+          totalMoves,
+          lastPracticed: Date.now(),
+          nextReview: sm2Result.nextReview,
+          easeFactor: sm2Result.easeFactor,
+          interval: sm2Result.interval,
+          repetitions: sm2Result.repetitions,
+        };
 
-    const newVariations = { ...get().variations, [key]: progress };
-    const newState = { ...get(), variations: newVariations };
-    set({ variations: newVariations });
-    persist(newState);
+        const newVariations = { ...get().variations, [key]: progress };
+        set({ variations: newVariations });
 
-    // Also update streak
-    get().updateStreak();
-  },
+        // Also update streak
+        get().updateStreak();
+      },
 
-  recordTacticsCompletion: (puzzleId, wrongAttempts, hintsUsed, timeSpent) => {
-    const existing = get().tacticsProgress[puzzleId];
-    const progress: TacticsProgress = {
-      puzzleId,
-      solved: true,
-      attempts: (existing?.attempts ?? 0) + 1,
-      hintsUsed,
-      timeSpent,
-      lastAttempted: Date.now(),
-    };
-    const newTactics = { ...get().tacticsProgress, [puzzleId]: progress };
-    set({ tacticsProgress: newTactics });
-    persist(get());
-    get().updateStreak();
-  },
+      recordTacticsCompletion: (puzzleId, wrongAttempts, hintsUsed, timeSpent) => {
+        const existing = get().tacticsProgress[puzzleId];
+        const progress: TacticsProgress = {
+          puzzleId,
+          solved: true,
+          attempts: (existing?.attempts ?? 0) + 1,
+          hintsUsed,
+          timeSpent,
+          lastAttempted: Date.now(),
+        };
+        const newTactics = { ...get().tacticsProgress, [puzzleId]: progress };
+        set({ tacticsProgress: newTactics });
+        get().updateStreak();
+      },
 
-  recordEndgameCompletion: (positionId, wrongAttempts, hintsUsed) => {
-    const progress = {
-      completed: true,
-      wrongAttempts,
-      hintsUsed,
-      lastPracticed: Date.now(),
-    };
-    const newEndgame = { ...get().endgameProgress, [positionId]: progress };
-    set({ endgameProgress: newEndgame });
-    persist(get());
-    get().updateStreak();
-  },
+      recordEndgameCompletion: (positionId, wrongAttempts, hintsUsed) => {
+        const progress = {
+          completed: true,
+          wrongAttempts,
+          hintsUsed,
+          lastPracticed: Date.now(),
+        };
+        const newEndgame = { ...get().endgameProgress, [positionId]: progress };
+        set({ endgameProgress: newEndgame });
+        get().updateStreak();
+      },
 
-  getTacticsProgress: (puzzleId) => {
-    return get().tacticsProgress[puzzleId];
-  },
+      getTacticsProgress: (puzzleId) => {
+        return get().tacticsProgress[puzzleId];
+      },
 
-  getSolvedTacticsCount: () => {
-    return Object.values(get().tacticsProgress).filter((p) => p.solved).length;
-  },
+      getSolvedTacticsCount: () => {
+        return Object.values(get().tacticsProgress).filter((p) => p.solved).length;
+      },
 
-  isEndgameCompleted: (positionId) => {
-    return get().endgameProgress[positionId]?.completed ?? false;
-  },
+      isEndgameCompleted: (positionId) => {
+        return get().endgameProgress[positionId]?.completed ?? false;
+      },
 
-  getCompletedEndgameCount: () => {
-    return Object.values(get().endgameProgress).filter((p) => p.completed).length;
-  },
+      getCompletedEndgameCount: () => {
+        return Object.values(get().endgameProgress).filter((p) => p.completed).length;
+      },
 
-  getOpeningProgress: (openingId) => {
-    const prefix = `${openingId}:`;
-    return Object.entries(get().variations)
-      .filter(([key]) => key.startsWith(prefix))
-      .map(([, progress]) => progress);
-  },
+      getOpeningProgress: (openingId) => {
+        const prefix = `${openingId}:`;
+        return Object.entries(get().variations)
+          .filter(([key]) => key.startsWith(prefix))
+          .map(([, progress]) => progress);
+      },
 
-  getDueReviews: () => {
-    return Object.values(get().variations)
-      .filter((p) => isReviewDue(p.nextReview))
-      .sort((a, b) => a.nextReview - b.nextReview);
-  },
+      getDueReviews: () => {
+        return Object.values(get().variations)
+          .filter((p) => isReviewDue(p.nextReview))
+          .sort((a, b) => a.nextReview - b.nextReview);
+      },
 
-  getOpeningDueCount: (openingId) => {
-    const prefix = `${openingId}:`;
-    return Object.entries(get().variations).filter(
-      ([key, progress]) =>
-        key.startsWith(prefix) && isReviewDue(progress.nextReview)
-    ).length;
-  },
+      getOpeningDueCount: (openingId) => {
+        const prefix = `${openingId}:`;
+        return Object.entries(get().variations).filter(
+          ([key, progress]) =>
+            key.startsWith(prefix) && isReviewDue(progress.nextReview)
+        ).length;
+      },
 
-  isOpeningDueForReview: (openingId) => {
-    return get().getOpeningDueCount(openingId) > 0;
-  },
+      isOpeningDueForReview: (openingId) => {
+        return get().getOpeningDueCount(openingId) > 0;
+      },
 
-  getVariationUrgency: (openingId, variationId) => {
-    const key = makeKey(openingId, variationId);
-    const progress = get().variations[key];
-    if (!progress) return "new";
-    return getReviewUrgency(progress.nextReview);
-  },
+      getVariationUrgency: (openingId, variationId) => {
+        const key = makeKey(openingId, variationId);
+        const progress = get().variations[key];
+        if (!progress) return "new";
+        return getReviewUrgency(progress.nextReview);
+      },
 
-  updateStreak: () => {
-    const today = getTodayString();
-    const { lastActiveDate, streakDays } = get();
+      updateStreak: () => {
+        const today = getTodayString();
 
-    if (lastActiveDate === today) return; // Already counted today
+        // Use functional set() to prevent race conditions from concurrent calls
+        set((state) => {
+          if (state.lastActiveDate === today) return state; // Already counted today
 
-    let newStreak: number;
+          let newStreak: number;
 
-    if (!lastActiveDate) {
-      newStreak = 1;
-    } else {
-      const lastDate = new Date(lastActiveDate);
-      const todayDate = new Date(today);
-      const diffMs = todayDate.getTime() - lastDate.getTime();
-      const diffDays = Math.round(diffMs / 86_400_000);
+          if (!state.lastActiveDate) {
+            newStreak = 1;
+          } else {
+            const lastDate = new Date(state.lastActiveDate);
+            const todayDate = new Date(today);
+            const diffMs = todayDate.getTime() - lastDate.getTime();
+            const diffDays = Math.round(diffMs / 86_400_000);
 
-      if (diffDays === 1) {
-        newStreak = streakDays + 1;
-      } else {
-        newStreak = 1; // Streak broken
-      }
+            if (diffDays === 1) {
+              newStreak = state.streakDays + 1;
+            } else {
+              newStreak = 1; // Streak broken
+            }
+          }
+
+          return { streakDays: newStreak, lastActiveDate: today };
+        });
+      },
+
+      hydrate: () => {
+        if (get().hydrated) return;
+        useProgressStore.persist.rehydrate();
+      },
+    }),
+    {
+      name: STORAGE_KEY,
+      storage: {
+        getItem: (name) => {
+          try {
+            const str = localStorage.getItem(name);
+            if (str === null) return null;
+            const parsed = JSON.parse(str);
+            // Support both old flat format and new {state, version} format
+            if (parsed && typeof parsed === "object" && "state" in parsed) {
+              return parsed;
+            }
+            // Wrap old flat format for persist middleware compatibility
+            return { state: parsed, version: 0 };
+          } catch {
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          // Store in flat format (without {state, version} wrapper) for backwards compatibility
+          const data = value && typeof value === "object" && "state" in value
+            ? (value as { state: unknown }).state
+            : value;
+          localStorage.setItem(name, JSON.stringify(data));
+        },
+        removeItem: (name) => {
+          localStorage.removeItem(name);
+        },
+      },
+      partialize: (state) => {
+        // Exclude hydrated flag from persistence
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { hydrated: _, ...rest } = state;
+        return rest as unknown as ProgressStore;
+      },
+      onRehydrateStorage: () => {
+        return (_state, error) => {
+          if (!error) {
+            useProgressStore.setState({ hydrated: true });
+          }
+        };
+      },
     }
-
-    set({ streakDays: newStreak, lastActiveDate: today });
-    const newState = get();
-    persist(newState);
-  },
-
-  hydrate: () => {
-    if (get().hydrated) return;
-    const stored = loadFromStorage();
-    if (stored) {
-      set({
-        variations: stored.variations ?? {},
-        tacticsProgress: stored.tacticsProgress ?? {},
-        endgameProgress: stored.endgameProgress ?? {},
-        streakDays: stored.streakDays ?? 0,
-        lastActiveDate: stored.lastActiveDate ?? "",
-        hydrated: true,
-      });
-    } else {
-      set({ hydrated: true });
-    }
-  },
-}));
+  )
+);
