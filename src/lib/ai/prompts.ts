@@ -122,6 +122,43 @@ export function buildEndgameTrainerContext(position: {
 }
 
 /**
+ * Build context string for the rating improvement planner.
+ * Formats user-submitted form data for the planning AI mode.
+ */
+export function buildPlannerContext(data: {
+  currentRating: number;
+  targetRating: number;
+  studyTime: string;
+  weaknesses: string[];
+  timeControl: string;
+  solvedTactics?: number;
+  streakDays?: number;
+}): string {
+  const lines: string[] = [
+    `The student wants to improve from rating ${data.currentRating} to ${data.targetRating}.`,
+    `Available study time: ${data.studyTime} per week.`,
+    `Preferred time control: ${data.timeControl}.`,
+  ];
+
+  if (data.weaknesses.length > 0) {
+    lines.push(`Self-identified weaknesses: ${data.weaknesses.join(", ")}.`);
+  }
+
+  if (data.solvedTactics && data.solvedTactics > 0) {
+    lines.push(`They have solved ${data.solvedTactics} tactics puzzles on this platform.`);
+  }
+
+  if (data.streakDays && data.streakDays > 0) {
+    lines.push(`Current practice streak: ${data.streakDays} day(s).`);
+  }
+
+  lines.push("");
+  lines.push("Create a structured weekly study plan with milestones. Recommend specific training modules available on this platform: Opening Trainer, Tactics Trainer, Endgame Trainer, and Game Analysis.");
+
+  return lines.join("\n");
+}
+
+/**
  * Build context string for the game analysis mode.
  * Sent as the first automated message when a game is loaded for review.
  */

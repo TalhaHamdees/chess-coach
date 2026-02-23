@@ -2,15 +2,16 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { ArrowLeft, RotateCcw, FlipVertical2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useGameStore } from "@/stores/gameStore";
-import { preloadAllSounds } from "@/lib/sounds";
+import { useCoachStore } from "@/stores/coachStore";
 import { ChessBoard } from "@/components/board/ChessBoard";
 import { MoveHistory } from "@/components/board/MoveHistory";
 import { ChatPanel } from "@/components/coach/ChatPanel";
-import { Button } from "@/components/ui/button";
-import { RotateCcw, FlipVertical2, BookOpen, Search, Swords, Crown, MessageSquare, PenTool, GraduationCap } from "lucide-react";
+import { preloadAllSounds } from "@/lib/sounds";
 
-export default function Home() {
+export default function CoachPage() {
   const {
     fen,
     selectedSquare,
@@ -26,61 +27,36 @@ export default function Home() {
     flipBoard,
   } = useGameStore();
 
-  // Preload sound effects on mount
+  const { setMode, clearChat } = useCoachStore();
+
   useEffect(() => {
     preloadAllSounds();
+    setMode("free-play");
+    clearChat();
+    return () => {
+      setMode("free-play");
+      clearChat();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="flex h-screen flex-col bg-background">
       {/* Header */}
-      <header className="flex shrink-0 items-center justify-between border-b px-4 py-2">
+      <header className="flex shrink-0 items-center gap-3 border-b px-4 py-2">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          asChild
+        >
+          <Link href="/" aria-label="Back to home">
+            <ArrowLeft className="size-4" />
+          </Link>
+        </Button>
         <h1 className="text-lg font-bold tracking-tight text-foreground">
-          Chess Coach
+          Coach Chat
         </h1>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/train/opening">
-              <BookOpen className="size-4" />
-              Openings
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/train/tactics">
-              <Swords className="size-4" />
-              Tactics
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/train/endgame">
-              <Crown className="size-4" />
-              Endgames
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/analyze">
-              <Search className="size-4" />
-              Analyze
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/coach">
-              <MessageSquare className="size-4" />
-              Coach
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/train/custom">
-              <PenTool className="size-4" />
-              Custom
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/plan">
-              <GraduationCap className="size-4" />
-              Study Plan
-            </Link>
-          </Button>
+        <div className="ml-auto flex gap-2">
           <Button variant="outline" size="sm" onClick={() => reset()}>
             <RotateCcw className="size-4" />
             New Game
