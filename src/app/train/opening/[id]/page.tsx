@@ -5,9 +5,12 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useGameStore } from "@/stores/gameStore";
 import { useCoachStore } from "@/stores/coachStore";
+import { useOpeningTrainerStore } from "@/stores/openingTrainerStore";
 import { ChessBoard } from "@/components/board/ChessBoard";
 import { MoveHistory } from "@/components/board/MoveHistory";
 import { ChatPanel } from "@/components/coach/ChatPanel";
+import { VariationTree } from "@/components/training/VariationTree";
+import { TrainerFeedback } from "@/components/training/TrainerFeedback";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getOpeningById } from "@/lib/data/openings";
@@ -17,37 +20,54 @@ export default function OpeningTrainerPage() {
   const router = useRouter();
   const opening = getOpeningById(params.id);
 
+  // Game store — board state (FEN, arrows, highlights, etc.)
   const {
     fen,
-    selectedSquare,
-    validMoveTargets,
     arrows,
     highlights,
     lastMove,
     flipped,
     moveHistory,
-    status,
-    selectSquare,
-    reset,
     flipBoard,
   } = useGameStore();
 
+  // Coach store — chat
   const { setMode, clearChat } = useCoachStore();
+
+  // Trainer store — interactive trainer logic
+  const {
+    status,
+    activeVariation,
+    currentMoveIndex,
+    playerColor,
+    wrongAttempts,
+    currentAnnotation,
+    completedVariations,
+    selectedSquare,
+    validMoveTargets,
+    initOpening,
+    startVariation,
+    handleSquareClick,
+    retryVariation,
+    showHint,
+    cleanup,
+  } = useOpeningTrainerStore();
 
   useEffect(() => {
     if (!opening) return;
 
-    // Set board to opening position
-    reset(opening.startingFen);
+    // Initialize the trainer with this opening
+    initOpening(opening);
+
+    // Reset board to opening starting position
+    useGameStore.getState().reset(opening.startingFen);
 
     // Flip board if student plays Black
-    if (opening.playerColor === "b") {
-      // Only flip if not already flipped
-      const currentFlipped = useGameStore.getState().flipped;
-      if (!currentFlipped) flipBoard();
-    } else {
-      const currentFlipped = useGameStore.getState().flipped;
-      if (currentFlipped) flipBoard();
+    const currentFlipped = useGameStore.getState().flipped;
+    if (opening.playerColor === "b" && !currentFlipped) {
+      flipBoard();
+    } else if (opening.playerColor === "w" && currentFlipped) {
+      flipBoard();
     }
 
     // Configure coach mode
@@ -55,6 +75,7 @@ export default function OpeningTrainerPage() {
     clearChat();
 
     return () => {
+      cleanup();
       setMode("free-play");
       clearChat();
     };
@@ -72,6 +93,14 @@ export default function OpeningTrainerPage() {
       </div>
     );
   }
+
+  const totalMoves = activeVariation?.moves.length ?? 0;
+  const isInteractive = status === "playing";
+
+  // Compute the move index for highlighting in MoveHistory
+  // currentMoveIndex points to the NEXT move to play, so highlight the last played (index - 1)
+  const historyHighlightIndex =
+    activeVariation && currentMoveIndex > 0 ? currentMoveIndex - 1 : undefined;
 
   return (
     <div className="flex h-screen flex-col bg-background">
@@ -95,45 +124,66 @@ export default function OpeningTrainerPage() {
 
       {/* Main content */}
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* Left: Board + info */}
+        {/* Left: Board + feedback + move history */}
         <div className="flex shrink-0 flex-col items-center gap-3 p-4 lg:w-auto">
           <div className="w-full max-w-[36rem]">
             <ChessBoard
               fen={fen}
-              onSquareClick={selectSquare}
+              onSquareClick={handleSquareClick}
               selectedSquare={selectedSquare}
               validMoveTargets={validMoveTargets}
               arrows={arrows}
               highlights={highlights}
               lastMove={lastMove}
               flipped={flipped}
+              interactive={isInteractive}
             />
           </div>
 
-          {/* Status + Move history */}
-          <div className="flex w-full max-w-[36rem] gap-3">
-            <div className="rounded-lg border bg-card px-3 py-2">
-              <div className="text-xs font-medium text-muted-foreground">
-                {status.isCheckmate && "Checkmate!"}
-                {status.isStalemate && "Stalemate!"}
-                {status.isDraw && !status.isStalemate && "Draw!"}
-                {status.isCheck && !status.isCheckmate && "Check!"}
-                {!status.isGameOver &&
-                  !status.isCheck &&
-                  `${status.turn === "w" ? "White" : "Black"} to move`}
-              </div>
-            </div>
-            <div className="min-w-0 flex-1 rounded-lg border bg-card px-3 py-2">
-              <MoveHistory moves={moveHistory} />
-            </div>
+          {/* Trainer feedback */}
+          <div className="w-full max-w-[36rem]">
+            <TrainerFeedback
+              status={status}
+              currentMoveIndex={currentMoveIndex}
+              totalMoves={totalMoves}
+              annotation={currentAnnotation}
+              wrongAttempts={wrongAttempts}
+              playerColor={playerColor}
+              onRetry={retryVariation}
+              onHint={showHint}
+            />
           </div>
 
-          {/* Opening info panel */}
-          <div className="w-full max-w-[36rem] rounded-lg border bg-card p-4">
+          {/* Move history */}
+          <div className="w-full max-w-[36rem] rounded-lg border bg-card px-3 py-2">
+            <MoveHistory
+              moves={moveHistory}
+              currentMoveIndex={historyHighlightIndex}
+            />
+          </div>
+        </div>
+
+        {/* Right: Variations + Key Ideas + Chat */}
+        <div className="min-h-[400px] flex-1 space-y-4 border-t p-4 lg:border-l lg:border-t-0">
+          {/* Variation tree */}
+          <div className="rounded-lg border bg-card p-4">
+            <h3 className="mb-3 text-sm font-semibold text-foreground">
+              Variations
+            </h3>
+            <VariationTree
+              variations={opening.variations}
+              activeVariationId={activeVariation?.id ?? null}
+              completedVariations={completedVariations}
+              onSelectVariation={startVariation}
+            />
+          </div>
+
+          {/* Key ideas */}
+          <div className="rounded-lg border bg-card p-4">
             <h3 className="mb-2 text-sm font-semibold text-foreground">
               Key Ideas
             </h3>
-            <ul className="mb-3 space-y-1">
+            <ul className="space-y-1">
               {opening.keyIdeas.map((idea) => (
                 <li
                   key={idea}
@@ -143,25 +193,9 @@ export default function OpeningTrainerPage() {
                 </li>
               ))}
             </ul>
-
-            <h3 className="mb-2 text-sm font-semibold text-foreground">
-              Variations
-            </h3>
-            <ul className="space-y-1">
-              {opening.variations.map((variation) => (
-                <li
-                  key={variation.id}
-                  className="text-xs text-muted-foreground"
-                >
-                  &bull; {variation.name} ({variation.moves.length} moves)
-                </li>
-              ))}
-            </ul>
           </div>
-        </div>
 
-        {/* Right: Chat panel */}
-        <div className="min-h-[400px] flex-1 border-t p-4 lg:border-l lg:border-t-0">
+          {/* Chat panel */}
           <ChatPanel />
         </div>
       </div>
