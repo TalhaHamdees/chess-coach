@@ -29,6 +29,8 @@ Field rules:
 - "suggestedMove" (string | null): A hint move for the student in "e2-e4" format, or null.
 - "moveQuality" (string | null): Rate the student's last move as one of: "brilliant", "good", "inaccuracy", "mistake", "blunder", or null if not applicable.
 
+IMPORTANT: Before stating whether a move is legal or suggesting a move, carefully verify the piece exists on the expected square and that no pieces block its path. Use the provided FEN to check the actual board state. Never guess — if unsure, say so.
+
 CRITICAL: Return ONLY the JSON object. No markdown, no code fences, no extra text outside the JSON.`;
 
 export const MODE_PROMPTS: Record<CoachingMode, string> = {

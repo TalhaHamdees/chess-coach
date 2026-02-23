@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { CoachRequest, CoachResponse } from "@/types/coach";
 import { buildSystemPrompt } from "./prompts";
 import { parseCoachResponse } from "./parser";
+import { validateCoachMoves } from "./move-validator";
 
 export async function sendCoachMessage(
   request: CoachRequest,
@@ -37,5 +38,6 @@ Student: ${request.message}`;
   const textBlock = response.content.find((block) => block.type === "text");
   const rawText = textBlock ? textBlock.text : "";
 
-  return parseCoachResponse(rawText);
+  const parsed = parseCoachResponse(rawText);
+  return validateCoachMoves(parsed, request.fen);
 }
