@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { useGameStore } from "@/stores/gameStore";
+import { preloadAllSounds } from "@/lib/sounds";
 import { ChessBoard } from "@/components/board/ChessBoard";
 import { MoveHistory } from "@/components/board/MoveHistory";
 import { ChatPanel } from "@/components/coach/ChatPanel";
@@ -23,6 +25,11 @@ export default function Home() {
     reset,
     flipBoard,
   } = useGameStore();
+
+  // Preload sound effects on mount
+  useEffect(() => {
+    preloadAllSounds();
+  }, []);
 
   return (
     <div className="flex h-screen flex-col bg-background">

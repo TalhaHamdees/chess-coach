@@ -1,74 +1,103 @@
-/** Simple move sound effects using Web Audio API */
+/**
+ * Chess sound effects using preloaded Audio elements.
+ * Sound files are from Lichess (MIT license) — the standard chess sound set
+ * matching the iconic Chess.com move/capture/check sounds.
+ */
 
-let audioContext: AudioContext | null = null;
+const SOUND_FILES = {
+  move: "/sounds/move.mp3",
+  capture: "/sounds/capture.mp3",
+  check: "/sounds/check.mp3",
+  error: "/sounds/error.mp3",
+  success: "/sounds/success.mp3",
+  lowtime: "/sounds/lowtime.mp3",
+} as const;
 
-function getAudioContext(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!audioContext) {
-    try {
-      audioContext = new AudioContext();
-    } catch {
-      return null;
+type SoundName = keyof typeof SOUND_FILES;
+
+/** Preloaded Audio element cache */
+const audioCache = new Map<SoundName, HTMLAudioElement>();
+
+/** Whether we're in a browser environment */
+function isBrowser(): boolean {
+  return typeof window !== "undefined" && typeof Audio !== "undefined";
+}
+
+/** Preload a sound into cache */
+function preload(name: SoundName): HTMLAudioElement | null {
+  if (!isBrowser()) return null;
+
+  const cached = audioCache.get(name);
+  if (cached) return cached;
+
+  try {
+    const audio = new Audio(SOUND_FILES[name]);
+    audio.preload = "auto";
+    audio.volume = 0.7;
+    audioCache.set(name, audio);
+    return audio;
+  } catch {
+    return null;
+  }
+}
+
+/** Play a named sound effect. Clones the audio element so overlapping plays work. */
+function play(name: SoundName): void {
+  if (!isBrowser()) return;
+
+  const audio = preload(name);
+  if (!audio) return;
+
+  try {
+    // Clone so rapid successive plays don't cut each other off
+    const clone = audio.cloneNode(true) as HTMLAudioElement;
+    clone.volume = audio.volume;
+    const result = clone.play();
+    // play() may return a promise in modern browsers
+    if (result && typeof result.catch === "function") {
+      result.catch(() => {
+        // Browser blocked autoplay — silently ignore
+      });
     }
+  } catch {
+    // Audio playback not supported in this environment — silently ignore
   }
-  return audioContext;
 }
 
-function playTone(
-  frequency: number,
-  duration: number,
-  volume: number = 0.15,
-  type: OscillatorType = "sine"
-): void {
-  const ctx = getAudioContext();
-  if (!ctx) return;
-
-  // Resume context if suspended (browser autoplay policy)
-  if (ctx.state === "suspended") {
-    ctx.resume().catch(() => {});
+/** Preload all sounds (call on first user interaction for best results) */
+export function preloadAllSounds(): void {
+  if (!isBrowser()) return;
+  for (const name of Object.keys(SOUND_FILES) as SoundName[]) {
+    preload(name);
   }
-
-  const oscillator = ctx.createOscillator();
-  const gainNode = ctx.createGain();
-
-  oscillator.type = type;
-  oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
-
-  gainNode.gain.setValueAtTime(volume, ctx.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-
-  oscillator.connect(gainNode);
-  gainNode.connect(ctx.destination);
-
-  oscillator.start(ctx.currentTime);
-  oscillator.stop(ctx.currentTime + duration);
 }
 
-/** Play a standard move sound */
+/** Play the standard piece move sound */
 export function playMoveSound(): void {
-  playTone(600, 0.08, 0.12, "sine");
+  play("move");
 }
 
-/** Play a capture sound (slightly lower, more percussive) */
+/** Play the capture sound */
 export function playCaptureSound(): void {
-  playTone(300, 0.12, 0.18, "triangle");
-  setTimeout(() => playTone(200, 0.06, 0.1, "square"), 20);
+  play("capture");
 }
 
-/** Play a check sound (higher pitch alert) */
+/** Play the check / checkmate sound */
 export function playCheckSound(): void {
-  playTone(880, 0.1, 0.15, "sine");
-  setTimeout(() => playTone(1100, 0.08, 0.12, "sine"), 80);
+  play("check");
 }
 
-/** Play a wrong move sound (low buzz) */
+/** Play the wrong move / illegal move sound */
 export function playWrongMoveSound(): void {
-  playTone(150, 0.2, 0.12, "sawtooth");
+  play("error");
 }
 
-/** Play a success/completion sound */
+/** Play the success / puzzle solved sound */
 export function playSuccessSound(): void {
-  playTone(523, 0.12, 0.12, "sine"); // C5
-  setTimeout(() => playTone(659, 0.12, 0.12, "sine"), 100); // E5
-  setTimeout(() => playTone(784, 0.15, 0.12, "sine"), 200); // G5
+  play("success");
+}
+
+/** Play the low time warning sound */
+export function playLowTimeSound(): void {
+  play("lowtime");
 }
