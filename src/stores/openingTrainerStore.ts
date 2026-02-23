@@ -6,6 +6,7 @@ import {
   getPiece,
 } from "@/lib/chess/engine";
 import { useGameStore } from "./gameStore";
+import { useProgressStore } from "./progressStore";
 import type { Opening, OpeningVariation, OpeningMove } from "@/types/opening";
 import type { Square, PieceColor } from "@/types/chess";
 
@@ -197,6 +198,12 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
       if (nextIndex >= activeVariation.moves.length) {
         const newCompleted = { ...completedVariations, [activeVariation.id]: true };
         saveCompletedVariations(opening.id, newCompleted);
+        useProgressStore.getState().recordVariationCompletion(
+          opening.id,
+          activeVariation.id,
+          activeVariation.moves.length,
+          get().wrongAttempts
+        );
         set({
           currentMoveIndex: nextIndex,
           status: "completed",
@@ -280,6 +287,12 @@ export const useOpeningTrainerStore = create<OpeningTrainerStore>((set, get) => 
     if (nextIndex >= activeVariation.moves.length) {
       const newCompleted = { ...completedVariations, [activeVariation.id]: true };
       saveCompletedVariations(opening.id, newCompleted);
+      useProgressStore.getState().recordVariationCompletion(
+        opening.id,
+        activeVariation.id,
+        activeVariation.moves.length,
+        get().wrongAttempts
+      );
       set({
         currentMoveIndex: nextIndex,
         status: "completed",

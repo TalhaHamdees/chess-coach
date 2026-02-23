@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { useOpeningTrainerStore } from "./openingTrainerStore";
 import { useGameStore } from "./gameStore";
+import { useProgressStore } from "./progressStore";
 import type { OpeningTrainerStore } from "./openingTrainerStore";
 import type { Opening, OpeningVariation } from "@/types/opening";
 
@@ -70,6 +71,13 @@ describe("openingTrainerStore", () => {
     vi.useFakeTimers();
     getStore().cleanup();
     useGameStore.getState().reset();
+    // Reset progress store
+    useProgressStore.setState({
+      variations: {},
+      streakDays: 0,
+      lastActiveDate: "",
+      hydrated: false,
+    });
     // Clear mock localStorage
     for (const key of Object.keys(localStorageMock)) {
       delete localStorageMock[key];
@@ -461,6 +469,104 @@ describe("openingTrainerStore", () => {
 
       expect(useGameStore.getState().arrows).toEqual([]);
       expect(useGameStore.getState().highlights).toEqual([]);
+    });
+  });
+
+  describe("progress store integration", () => {
+    it("records variation completion in progressStore when player makes final move", () => {
+      const opening = makeOpening({
+        variations: [
+          {
+            id: "short",
+            name: "Short",
+            moves: [
+              { moveNumber: 3, san: "Bc5", color: "b" }, // opponent
+              { moveNumber: 4, san: "c3", color: "w" },  // player (final)
+            ],
+            finalFen: "test",
+          },
+        ],
+      });
+
+      getStore().initOpening(opening);
+      getStore().startVariation("short");
+      vi.advanceTimersByTime(500); // opponent plays Bc5
+
+      // Player plays c3 (final move)
+      getStore().handleSquareClick("c2");
+      getStore().handleSquareClick("c3");
+
+      expect(getStore().status).toBe("completed");
+
+      const progress =
+        useProgressStore.getState().variations["italian-game:short"];
+      expect(progress).toBeDefined();
+      expect(progress.openingId).toBe("italian-game");
+      expect(progress.variationId).toBe("short");
+      expect(progress.totalMoves).toBe(2);
+      expect(progress.repetitions).toBe(1);
+    });
+
+    it("records variation completion in progressStore when opponent makes final move", () => {
+      // giuoco-piano: Bc5(b), c3(w), d6(b) — last move is opponent's
+      const opening = makeOpening();
+      getStore().initOpening(opening);
+      getStore().startVariation("giuoco-piano");
+      vi.advanceTimersByTime(500); // opponent plays Bc5
+
+      // Player plays c3
+      getStore().handleSquareClick("c2");
+      getStore().handleSquareClick("c3");
+
+      // Opponent plays d6 (final move)
+      vi.advanceTimersByTime(500);
+
+      expect(getStore().status).toBe("completed");
+
+      const progress =
+        useProgressStore.getState().variations["italian-game:giuoco-piano"];
+      expect(progress).toBeDefined();
+      expect(progress.totalMoves).toBe(3);
+      expect(progress.repetitions).toBe(1);
+    });
+
+    it("passes wrongAttempts to progressStore for quality calculation", () => {
+      const opening = makeOpening({
+        variations: [
+          {
+            id: "short",
+            name: "Short",
+            moves: [
+              { moveNumber: 3, san: "Bc5", color: "b" },
+              { moveNumber: 4, san: "c3", color: "w" },
+            ],
+            finalFen: "test",
+          },
+        ],
+      });
+
+      getStore().initOpening(opening);
+      getStore().startVariation("short");
+      vi.advanceTimersByTime(500); // opponent plays Bc5
+
+      // Make 2 wrong attempts first
+      getStore().handleSquareClick("d2");
+      getStore().handleSquareClick("d3");
+      vi.advanceTimersByTime(800);
+
+      getStore().handleSquareClick("d2");
+      getStore().handleSquareClick("d4");
+      vi.advanceTimersByTime(800);
+
+      // Now play correct move
+      getStore().handleSquareClick("c2");
+      getStore().handleSquareClick("c3");
+
+      const progress =
+        useProgressStore.getState().variations["italian-game:short"];
+      // 2 wrong attempts → quality 3 → EF will be lower than perfect
+      expect(progress).toBeDefined();
+      expect(progress.easeFactor).toBeLessThan(2.6);
     });
   });
 
