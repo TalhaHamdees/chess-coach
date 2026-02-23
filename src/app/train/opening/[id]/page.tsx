@@ -6,11 +6,14 @@ import { ArrowLeft } from "lucide-react";
 import { useGameStore } from "@/stores/gameStore";
 import { useCoachStore } from "@/stores/coachStore";
 import { useOpeningTrainerStore } from "@/stores/openingTrainerStore";
+import { useProgressStore } from "@/stores/progressStore";
 import { ChessBoard } from "@/components/board/ChessBoard";
 import { MoveHistory } from "@/components/board/MoveHistory";
 import { ChatPanel } from "@/components/coach/ChatPanel";
 import { VariationTree } from "@/components/training/VariationTree";
 import { TrainerFeedback } from "@/components/training/TrainerFeedback";
+import { LichessExplorer } from "@/components/training/LichessExplorer";
+import { SpacedRepetition } from "@/components/training/SpacedRepetition";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getOpeningById } from "@/lib/data/openings";
@@ -52,6 +55,14 @@ export default function OpeningTrainerPage() {
     showHint,
     cleanup,
   } = useOpeningTrainerStore();
+
+  // Progress store
+  const hydrate = useProgressStore((s) => s.hydrate);
+  const getOpeningDueCount = useProgressStore((s) => s.getOpeningDueCount);
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
 
   useEffect(() => {
     if (!opening) return;
@@ -96,6 +107,7 @@ export default function OpeningTrainerPage() {
 
   const totalMoves = activeVariation?.moves.length ?? 0;
   const isInteractive = status === "playing";
+  const dueCount = getOpeningDueCount(opening.id);
 
   // Compute the move index for highlighting in MoveHistory
   // currentMoveIndex points to the NEXT move to play, so highlight the last played (index - 1)
@@ -154,6 +166,16 @@ export default function OpeningTrainerPage() {
             />
           </div>
 
+          {/* Spaced repetition info (shown when completed) */}
+          {status === "completed" && activeVariation && (
+            <div className="w-full max-w-[36rem]">
+              <SpacedRepetition
+                openingId={opening.id}
+                variationId={activeVariation.id}
+              />
+            </div>
+          )}
+
           {/* Move history */}
           <div className="w-full max-w-[36rem] rounded-lg border bg-card px-3 py-2">
             <MoveHistory
@@ -163,13 +185,20 @@ export default function OpeningTrainerPage() {
           </div>
         </div>
 
-        {/* Right: Variations + Key Ideas + Chat */}
+        {/* Right: Variations + Lichess Explorer + Key Ideas + Chat */}
         <div className="min-h-[400px] flex-1 space-y-4 border-t p-4 lg:border-l lg:border-t-0">
           {/* Variation tree */}
           <div className="rounded-lg border bg-card p-4">
-            <h3 className="mb-3 text-sm font-semibold text-foreground">
-              Variations
-            </h3>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">
+                Variations
+              </h3>
+              {dueCount > 0 && (
+                <Badge className="border-0 bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 text-xs">
+                  {dueCount} due
+                </Badge>
+              )}
+            </div>
             <VariationTree
               variations={opening.variations}
               activeVariationId={activeVariation?.id ?? null}
@@ -177,6 +206,9 @@ export default function OpeningTrainerPage() {
               onSelectVariation={startVariation}
             />
           </div>
+
+          {/* Lichess Explorer */}
+          <LichessExplorer fen={fen} playerColor={playerColor} />
 
           {/* Key ideas */}
           <div className="rounded-lg border bg-card p-4">

@@ -10,11 +10,13 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ProgressBar } from "./ProgressBar";
 import { cn } from "@/lib/utils";
 
 interface OpeningCardProps {
   opening: Opening;
   onSelect: (openingId: string) => void;
+  dueReviewCount?: number;
 }
 
 const difficultyStyles: Record<Opening["difficulty"], string> = {
@@ -23,15 +25,24 @@ const difficultyStyles: Record<Opening["difficulty"], string> = {
   advanced: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
 };
 
-export function OpeningCard({ opening, onSelect }: OpeningCardProps) {
+export function OpeningCard({ opening, onSelect, dueReviewCount }: OpeningCardProps) {
+  const hasDueReviews = dueReviewCount !== undefined && dueReviewCount > 0;
+
   return (
     <Card className="flex flex-col">
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base">{opening.name}</CardTitle>
-          <Badge variant="outline" className="shrink-0 font-mono text-xs">
-            {opening.eco}
-          </Badge>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {hasDueReviews && (
+              <Badge className="border-0 bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+                {dueReviewCount} due
+              </Badge>
+            )}
+            <Badge variant="outline" className="font-mono text-xs">
+              {opening.eco}
+            </Badge>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Badge className={cn("border-0", difficultyStyles[opening.difficulty])}>
@@ -48,6 +59,12 @@ export function OpeningCard({ opening, onSelect }: OpeningCardProps) {
         <p className="mt-3 text-xs text-muted-foreground">
           {opening.variations.length} variation{opening.variations.length !== 1 ? "s" : ""}
         </p>
+        <div className="mt-3">
+          <ProgressBar
+            openingId={opening.id}
+            totalVariations={opening.variations.length}
+          />
+        </div>
       </CardContent>
 
       <CardFooter>
@@ -56,7 +73,7 @@ export function OpeningCard({ opening, onSelect }: OpeningCardProps) {
           className="w-full"
           onClick={() => onSelect(opening.id)}
         >
-          Start Training
+          {hasDueReviews ? "Review Now" : "Start Training"}
         </Button>
       </CardFooter>
     </Card>

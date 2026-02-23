@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import { OpeningCard } from "./OpeningCard";
+import { useProgressStore } from "@/stores/progressStore";
 import type { Opening } from "@/types/opening";
 
 function makeOpening(overrides: Partial<Opening> = {}): Opening {
@@ -36,6 +37,15 @@ function makeOpening(overrides: Partial<Opening> = {}): Opening {
 }
 
 describe("OpeningCard", () => {
+  beforeEach(() => {
+    useProgressStore.setState({
+      variations: {},
+      streakDays: 0,
+      lastActiveDate: "",
+      hydrated: true,
+    });
+  });
+
   it("renders the opening name", () => {
     render(<OpeningCard opening={makeOpening()} onSelect={() => {}} />);
     expect(screen.getByText("Italian Game")).toBeInTheDocument();
@@ -99,5 +109,42 @@ describe("OpeningCard", () => {
 
     await user.click(screen.getByRole("button", { name: /Start Training/i }));
     expect(handleSelect).toHaveBeenCalledWith("italian-game");
+  });
+
+  it("shows 'due' badge when dueReviewCount > 0", () => {
+    render(
+      <OpeningCard
+        opening={makeOpening()}
+        onSelect={() => {}}
+        dueReviewCount={3}
+      />
+    );
+    expect(screen.getByText("3 due")).toBeInTheDocument();
+  });
+
+  it("shows 'Review Now' button text when reviews are due", () => {
+    render(
+      <OpeningCard
+        opening={makeOpening()}
+        onSelect={() => {}}
+        dueReviewCount={2}
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: /Review Now/i })
+    ).toBeInTheDocument();
+  });
+
+  it("shows 'Start Training' when no reviews are due", () => {
+    render(
+      <OpeningCard
+        opening={makeOpening()}
+        onSelect={() => {}}
+        dueReviewCount={0}
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: /Start Training/i })
+    ).toBeInTheDocument();
   });
 });
